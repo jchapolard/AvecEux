@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>OpenLayers Points Example</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <!-- Librairie font awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+     <!-- TODO - Performance : réduire la taille de la librairie Font Awesome en ne chargeant que les icônes utiles.
+      Utiliser la version "SVG with JS" de la librairie -->
+      <!-- Librairie Js animate.css -->
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
+      <!--style des popup-->
+    <style>
+      .ol-popup {
+          position: absolute;
+          background-color: rgb(255, 230, 240);
+          box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+          padding: 15px;
+          border-radius: 20px;
+          border: 1px solid #cc0052;
+          bottom: 12px;
+          left: -50px;
+          min-width: 350px;
+      }
+
+          .ol-popup:after, .ol-popup:before {
+              top: 100%;
+              border: solid transparent;
+              content: " ";
+              height: 0;
+              width: 0;
+              position: absolute;
+              pointer-events: none;
+          }
+
+          .ol-popup:after {
+              border-top-color: white;
+              border-width: 10px;
+              left: 48px;
+              margin-left: -10px;
+          }
+
+          .ol-popup:before {
+              border-top-color: #cccccc;
+              border-width: 11px;
+              left: 48px;
+              margin-left: -11px;
+          }
+
+      .ol-popup-closer {
+          text-decoration: none;
+          position: absolute;
+          top: 8px;
+          right: 8px;
+      }
+
+      .ol-popup-closer:after {
+          content: "✖";
+          color: #cc0052;
+          font-size: 20px;
+      }
+
+  </style>
+  </head>
+  
+  <body>
+    <div id="map1"></div>
+    <div id="map2"></div>
+    <div id="map1"></div>
+    
+    <div class="flex-container">
+      <div class="flex-child-rightBox">
+        <div class="search-container">
+          <input id="address" class="flex-child" type="text" name="address" placeholder="Search.." value="Pl. Bellecour, 69002 Lyon"/>
+          <button id="search" class="flex-child"><i class="fa fa-search"></i></button>
+        </div>
+      </div>
+      <div class="flex-child-leftBox">
+        <div id="wrapMap">
+          <div id="map"></div>
+        </div>
+        <div id="popup" class="ol-popup">
+          <div id="popup-closer" class="ol-popup-closer"></div>
+          <div id="popup-content"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div id="map1"></div>
+    <div id="map1"></div>
+  </body>
+
+  <!-- Bibliothèque OpenLayers -->
+  <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
+
+  <script src="main2.js"></script>
+</html>

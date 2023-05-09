@@ -1,0 +1,16 @@
+01/03/2023
+wix module imput adresse
+a lier avec un iframe html
+voir des open map
+
+05/05/2023
+a créer : 
+- BBdCategorie
+- Implémenter les Association dna bdd Association
+- Voir pour les long/latitu (jade)
+- Filtre Supprimmer : Mission, Enfant, 
+- Modififer : Actiité en Catéégoie
+- Implémenter Localisation
+- Voir pour carte dans la page et pas de scroll
+- Raccorder : Fréquence
+- scc Popup (a voir avec le site actuel)
