@@ -9,8 +9,15 @@ a créer :
 - Implémenter les Association dna bdd Association
 - Voir pour les long/latitu (jade)
 - Filtre Supprimmer : Mission, Enfant, 
-- Modififer : Actiité en Catéégoie
+- Modififer : Activité en Catéégoie
 - Implémenter Localisation
 - Voir pour carte dans la page et pas de scroll
 - Raccorder : Fréquence
 - scc Popup (a voir avec le site actuel)
+
+18/05/2023
+RAF :
+- Implémenter Localisation
+- Raccorder : Fréquence
+- scc Popup (a voir avec le site actuel)
+- Factorisation sur la requete de la liste des associations
