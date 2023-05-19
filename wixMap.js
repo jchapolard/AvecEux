@@ -3,7 +3,7 @@ import wixData from 'wix-data';
 $w.onReady(function () {
     var latitude, longitude;
     var left, right, bottom, top;
-    var markers; 
+    var markers, markersWixItems;
     var filter, centreloc;
 
     // Par default cacher le texte "aucune association"
@@ -22,7 +22,7 @@ $w.onReady(function () {
             return item.trim();
           });
         console.log("1.valeursActivites : "+valeursActivites);
-        console.log("valeursActivites.length : "+valeursActivites.length);
+        //console.log("valeursActivites.length : "+valeursActivites.length);
         
         filter = {
             radius: radius,
@@ -52,8 +52,9 @@ $w.onReady(function () {
             .limit(1000) // Spécifiez la limite pour récupérer toutes les lignes
             .find()
             .then((results) => {
-                    // Créer un tableau de marqueurs à partir des résultats de la requête
+                // Créer un tableau de marqueurs à partir des résultats de la requête
                 markers = results.items.map(item => ({
+                    _id: item._id,
                     id: item.id,
                     name: item.title,
                     address: item.adresseSiege,
@@ -61,21 +62,25 @@ $w.onReady(function () {
                     lng: item.lng,
                     categorie: item.categorie1,
                     description: item.description,
-                    logo: item.logo
+                    logo: item.logo,
+                    website: item.website
                 }));
+                markersWixItems = results.items; // Tableau des objets résultants
+                //const count = markersWixItems.length; // Nombre d'objets dans le tableau
+                //console.log("Nombre d'objets dans markersWixItems: " + count);
+
                 console.log("=====> findAllAsso, nombre de markers : "+markers.length);
 
-                if(filter.numberCategories === 1){
-                    $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });
-                } else {
+                if(filter.numberCategories > 1){
                     let markersFilteredCategories = [];
-                markersFilteredCategories = findMarkersByCategories(markers, filter);
-
-                // Envoyer les marqueurs à l'élément HTML en utilisant postMessage
-                $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markersFilteredCategories });
+                    let markersWixFilterdCategories = [];
+                    markersFilteredCategories = findMarkersByCategories(markers, filter, markersWixItems, markersWixFilterdCategories);
+                    markers = markersFilteredCategories;
+                    markersWixItems = markersWixFilterdCategories;
                 }
-                                
-                //searchLocation("button");                
+                // Envoyer les marqueurs à l'élément HTML en utilisant postMessage
+                $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });             
+                searchLocation("button");                
             })
             .catch((error) => {
                 let errorMsg = error.message;
@@ -84,61 +89,16 @@ $w.onReady(function () {
             });
     }
     
-    function findMarkersByCategories(markers, filter) {
+    function findMarkersByCategories(markers, filter, markersWixItems, markersWixFilterdCategories) {
         console.log("findMarkersByCategories");
         let arrayMarkersCopy = [];
-        var index = 1;
-        for (let i = 0; i < markers.length; i++) {
-            for (let j = 0; j < filter.numberCategories; j++) {
-                //console.log("filter.categories[j] : "+filter.categories[j]);
-                //console.log("markers[i].categorie : "+markers[i].categorie);
-                if (markers[i].categorie.includes(filter.categories[j])) {
-                    //console.log("index : "+index);
-                    //console.log(`findMarkersByCategories - name, categorie: ${markers[i].id} / ${markers[i].name} / marker.categorie: ${markers[i].categorie} / ${markers[i].address}`);
-                    arrayMarkersCopy.push(markers[i]);
-                    index++;
-                    break;
-                }
+        //for (const marker of markers) {
+        for(let i=0;i<markers.length;i++){}
+            if (filter.categories.some(category => markers[i].categorie.includes(category))) {
+              arrayMarkersCopy.push(markers[i]);
+              markersWixFilterdCategories.push(markersWixItems[i]);
             }
-        }
-
-        /*for (let i = 0; i < markers.length; i++) {
-            for (let j = 0; j < filter.categories.length; j++) {
-                //console.log("filter.categories[j] : "+filter.categories[j]);
-                //console.log("markers[i].categorie : "+markers[i].categorie);
-                if (markers[i].categorie.includes(filter.categories[j])) {
-                console.log(`findMarkersByCategories - name, categorie: ${markers[i].name} / ${filter.categories[j]} / marker.categorie: ${markers[i].categorie}`);
-                arrayMarkersCopy.push(markers[i]);
-                }
-            }
-        } */
-
-
-        /*// Définir les chaînes de caractères à rechercher
-        let searchStrings = filter.categories;
-        // Créer une expression régulière qui recherchera tous les mots spécifiés dans la chaîne de recherche
-        let regexString = searchStrings.join("|");
-        let regex = new RegExp(regexString, "i");
-
-        for (let i = 0; i < markers.length; i++) {
-            console.log("markers.name : "+markers[i].id+" - "+markers[i].name +" / Adresse : "+markers[i].address);
-            // Définir une chaîne de caractères avec les éléments séparés par une virgule
-            let stringList = markers[i].categorie;
-            // Diviser la chaîne de caractères en un tableau de chaînes de caractères
-            let stringArray = stringList.split(", ");
-            
-            // Itérer sur chaque élément du tableau et vérifier si la chaîne de recherche est contenue dans chaque élément
-            for (let j = 0; j < stringArray.length; j++) {
-                console.log("stringArray : "+stringArray[j])
-                if (regex.test(stringArray[j])) {
-                    // La chaîne de recherche est contenue dans cet élément de la liste
-                    //console.log(`La chaîne "${searchStrings.join(", ")}" est contenue dans "${stringArray[i]}"`);
-                    
-                    arrayMarkersCopy.push(markers[j]);
-                }
-            }
-        } */
-        
+        }       
         console.log("arrayMarkersCopy.length: " + arrayMarkersCopy.length);
         return arrayMarkersCopy;
     }
@@ -213,11 +173,11 @@ $w.onReady(function () {
         
         // Liste 
         console.log("listAssociationAvecFiltre");
-        listAssociationAvecFiltre(comeFrom, filter);
+        listAssociationAvecFiltre(comeFrom); //, filter);
     }
 
     //Afficher les associations dans l'onglet liste
-    function listAssociationAvecFiltre(comeFrom, filter){
+    function listAssociationAvecFiltre2(comeFrom){ //, filter){
 
         //AFFICHER LES ASSO SOUS FORME DE LISTE
         let repeater = $w('#repeter');
@@ -227,9 +187,6 @@ $w.onReady(function () {
         
         wixData.query("Locations")
             .eq("validee", "true")
-            //.distinct("title")
-            //.hasSome("categorie1", filter.categories)
-            //.contains("categorie1", filter.categories)
             .find()
             .then((results) => { 
                 const itemsToAdd = [];
@@ -238,6 +195,7 @@ $w.onReady(function () {
                     
                     for(let i = 0; i < results.items.length; i++){
                         const feature = results.items[i];
+                        //console.log("feature.title : "+feature.title);
                         if(comeFrom === "button"){
                             // Filtre distance
                             if (spatialFilter(feature)) {
@@ -251,31 +209,29 @@ $w.onReady(function () {
                                 }
                         }
                     }
+                    //let markersFilteredCategories = [];
+                    //markersFilteredCategories = findMarkersByCategories(filteredFeatures, filter);
+                    //markers = markersFilteredCategories;
+                    //console.log("markersFilteredCategories.length : "+markersFilteredCategories.length);
 
                     console.log("filteredFeatures.length : "+filteredFeatures.length);
                     if(filteredFeatures.length > 0){
                         $w("#textNoAsso").hide();
 
-                        for(let i = 0; i < filteredFeatures.length; i++){
-
-                            /*let name = filteredFeatures[i].title;
-                            console.log("name : "+name);
-                            let cat = filteredFeatures[i].categorie;
-                            let desc = filteredFeatures[i].description;
-                            let site = filteredFeatures[i].website;
-                            let log = filteredFeatures[i].logo; */
-                           
+                        for (let i = 0; i < filteredFeatures.length; i++) {
                             itemsToAdd.push(filteredFeatures[i]);
-                            $w("#repeter").data = itemsToAdd;
-
-                            $w("#repeter").forEachItem(($item, itemData, index) => {
-                                $item("#repeterName").text = itemData.title;
-                                $item("#repeterCategorie").text = itemData.categorie1;
-                                $item("#repeterDescription").text = itemData.description;
-                                $item("#repeterSite").text = itemData.website;
-                                $item("#repeterLogo").src = itemData.logo;
-                            });
                         }
+                        console.log("itemsToAdd.length : " + itemsToAdd.length);
+                        console.log("itemsToAdd[0]; : "+JSON.stringify(itemsToAdd[0]));
+                        console.log("itemsToAdd[0].name : "+ itemsToAdd[0].name);
+                        $w("#repeter").data = itemsToAdd;
+                        $w("#repeter").forEachItem(($item, itemData, index) => {
+                            $item("#repeterName").text = itemData.title;
+                            $item("#repeterCategorie").text = itemData.categorie1;
+                            $item("#repeterDescription").text = itemData.description;
+                            $item("#repeterSite").text = itemData.website;
+                            $item("#repeterLogo").src = itemData.logo;
+                        });
                     } else {
                         //Affichage/ désaffichage du texte si aucune association n'est dans le périmètre
                         $w("#textNoAsso").show();
@@ -287,42 +243,109 @@ $w.onReady(function () {
                 let code = error.code;
                 console.error("listAssociationAvecFiltre Error : "+code +" : "+errorMsg);
             });
+    }
+//---------------------------------
+    //TODO: Recupération des markers sans appelle à la bdd
+    function listAssociationAvecFiltre(comeFrom) {
+        //AFFICHER LES ASSO SOUS FORME DE LISTE
+        let repeater = $w('#repeter');
+        var filteredFeatures = [];
+        // Supprimer tous les éléments
+        repeater.data = [];
+        let itemsToAdd = [];
+        console.log("listAssociationAvecFiltre - markers.length : " + markers.length);
         
-        
-        // Filtrer les fonctionnalités qui se trouvent à moins de x mètres du point de référence
-        function spatialFilter(feature) {
-            var featureLatitude = feature.lat;
-            var featureLongitude = feature.lng;
-            //console.log("spatialFilter - Name : "+feature.title+" - lat long : "+featureLatitude+" / "+featureLongitude+" / "+latitude+ " / "+ longitude);
-            const dist = distance(latitude, longitude, featureLatitude, featureLongitude);
-            
-            //console.log("distance < radius : "+dist +" < "+ filter.radius);
-            return dist < filter.radius;
+        for(let i=0;i<markers.length;i++){
+            if (comeFrom === "button") {
+                // Filtre distance
+                if (spatialFilter(markers[i])) {
+                    filteredFeatures.push(markersWixItems[i]);
+                }
+            } else if (comeFrom === "moveend") {
+                //Si l'association est affichée dans la carte, alors l'afficher dans la liste
+                if (markers[i].lat < right && left < markers[i].lat &&
+                    markers[i].lng < top && bottom < markers[i].lng) {
+                    filteredFeatures.push(markersWixItems[i]);
+                }
+            }
         }
 
-        // Calculer la distance entre la fonctionnalité et le point de référence
-        // * lat1, lon1 = Latitude and Longitude of referencePoint (in decimal degrees)
-        // * lat2, lon2 = Latitude and Longitude of featureCoordinates (in decimal degrees)
-        function distance(lat1, lon1, lat2, lon2) {
-            if ((lat1 == lat2) && (lon1 == lon2)) {
-                return 0;
-            }
-            else {
-                var radlat1 = Math.PI * lat1/180;
-                var radlat2 = Math.PI * lat2/180;
-                var theta = lon1-lon2;
-                var radtheta = Math.PI * theta/180;
-                var dist = Math.sin(radlat1) * Math.sin(radlat2) + Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
-                if (dist > 1) {
-                dist = 1;
+        /*
+        markers.forEach(function(marker) {
+            if (comeFrom === "button") {
+                // Filtre distance
+                if (spatialFilter(marker)) {
+                    filteredFeatures.push(marker);
                 }
-                dist = Math.acos(dist);
-                dist = dist * 180/Math.PI;
-                dist = dist * 60 * 1.1515;
-                dist = dist * 1.609344;
-                
-                return dist;
+            } else if (comeFrom === "moveend") {
+                //Si l'association est affichée dans la carte, alors l'afficher dans la liste
+                if (marker.lat < right && left < marker.lat &&
+                    marker.lng < top && bottom < marker.lng) {
+                    filteredFeatures.push(marker);
+                }
             }
+        }); */
+
+        //console.log("filteredFeatures.length : " + filteredFeatures.length);
+        if (filteredFeatures.length > 0) {
+            $w("#textNoAsso").hide();
+            
+            for (let i = 0; i < filteredFeatures.length; i++) {
+                itemsToAdd.push(filteredFeatures[i]);
+            }
+            //console.log("itemsToAdd.length : " + itemsToAdd.length);
+            //console.log("itemsToAdd[0]; : "+JSON.stringify(itemsToAdd[0]));
+            //console.log("itemsToAdd[0].title : "+ JSON.stringify(itemsToAdd[0].title));
+            
+            $w("#repeter").data = itemsToAdd;
+            $w("#repeter").forEachItem(($item, itemData, index) => {
+                $item("#repeterName").text = itemData.title;
+                $item("#repeterCategorie").text = itemData.categorie1;
+                $item("#repeterDescription").text = itemData.description;
+                $item("#repeterSite").text = itemData.website;
+                $item("#repeterLogo").src = itemData.logo;
+            });
+        } else {
+            //Affichage/ désaffichage du texte si aucune association n'est dans le périmètre
+            $w("#textNoAsso").show();
+        }
+    }
+
+
+//----------------
+    // Filtrer les fonctionnalités qui se trouvent à moins de x mètres du point de référence
+    function spatialFilter(feature) {
+        var featureLatitude = feature.lat;
+        var featureLongitude = feature.lng;
+        //console.log("spatialFilter - Name : "+feature.title+" - lat long : "+featureLatitude+" / "+featureLongitude+" / "+latitude+ " / "+ longitude);
+        const dist = distance(latitude, longitude, featureLatitude, featureLongitude);
+        
+        //console.log("distance < radius : "+dist +" < "+ filter.radius);
+        return dist < filter.radius;
+    }
+
+    // Calculer la distance entre la fonctionnalité et le point de référence
+    // * lat1, lon1 = Latitude and Longitude of referencePoint (in decimal degrees)
+    // * lat2, lon2 = Latitude and Longitude of featureCoordinates (in decimal degrees)
+    function distance(lat1, lon1, lat2, lon2) {
+        if ((lat1 == lat2) && (lon1 == lon2)) {
+            return 0;
+        }
+        else {
+            var radlat1 = Math.PI * lat1/180;
+            var radlat2 = Math.PI * lat2/180;
+            var theta = lon1-lon2;
+            var radtheta = Math.PI * theta/180;
+            var dist = Math.sin(radlat1) * Math.sin(radlat2) + Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
+            if (dist > 1) {
+            dist = 1;
+            }
+            dist = Math.acos(dist);
+            dist = dist * 180/Math.PI;
+            dist = dist * 60 * 1.1515;
+            dist = dist * 1.609344;
+            
+            return dist;
         }
     }
 
@@ -340,7 +363,7 @@ $w.onReady(function () {
             searchLocation("moveend");
 
         } else if(event.data.type === "loadAllMarkers") {
-            console.log("event.data.type === loadAllMarkers");
+            console.log("event.data.type === loadAllMarkers : "+markers.length);
             // Recupérer les markers correspondants au filtre
             //filter = filterValues();
             //findAllAsso(filter);

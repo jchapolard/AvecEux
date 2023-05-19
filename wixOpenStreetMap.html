@@ -359,12 +359,6 @@
             // Filtre distance
             if (spatialFilter(feature)) {
                 refineFeatures.push(feature);
-                // TODO: autres filtres
-                /*filter.categories.forEach(value => {
-                    if(feature.categorie === value){
-                        refineFeatures.push(feature);
-                    }
-                }); */
             }
         }
         return refineFeatures;
