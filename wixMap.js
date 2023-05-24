@@ -21,7 +21,7 @@ $w.onReady(function () {
         let valeursActivites = activityCheckbox.split(",").map(function(item) {
             return item.trim();
           });
-        console.log("1.valeursActivites : "+valeursActivites);
+        //console.log("1.valeursActivites : "+valeursActivites);
         //console.log("valeursActivites.length : "+valeursActivites.length);
         
         filter = {
@@ -40,9 +40,9 @@ $w.onReady(function () {
         var valeurCategorie = "";
         if(filter.numberCategories === 1){
             valeurCategorie = filter.categories[0].toString();
-            console.log("valeurCategorie : "+valeurCategorie);
+            //console.log("valeurCategorie : "+valeurCategorie);
         }
-        console.log("filter.categories.length : "+filter.categories.length);
+        //console.log("filter.categories.length : "+filter.categories.length);
 
         wixData.query("Locations")
             .eq("validee", "true")
@@ -69,7 +69,7 @@ $w.onReady(function () {
                 //const count = markersWixItems.length; // Nombre d'objets dans le tableau
                 //console.log("Nombre d'objets dans markersWixItems: " + count);
 
-                console.log("=====> findAllAsso, nombre de markers : "+markers.length);
+                //console.log("=====> findAllAsso, nombre de markers : "+markers.length);
 
                 if(filter.numberCategories > 1){
                     let markersFilteredCategories = [];
@@ -90,20 +90,20 @@ $w.onReady(function () {
     }
     
     function findMarkersByCategories(markers, filter, markersWixItems, markersWixFilterdCategories) {
-        console.log("findMarkersByCategories");
+        //console.log("findMarkersByCategories");
         let arrayMarkersCopy = [];
         //for (const marker of markers) {
-        for(let i=0;i<markers.length;i++){}
+        for(let i=0;i<markers.length;i++){
             if (filter.categories.some(category => markers[i].categorie.includes(category))) {
               arrayMarkersCopy.push(markers[i]);
               markersWixFilterdCategories.push(markersWixItems[i]);
             }
         }       
-        console.log("arrayMarkersCopy.length: " + arrayMarkersCopy.length);
+        //console.log("arrayMarkersCopy.length: " + arrayMarkersCopy.length);
         return arrayMarkersCopy;
     }
 
-    //Click bouton recherche d'une ville, centre la carte sur la location cherchée
+    //Click bouton Loupe - Recherche ville, centre la carte sur la location cherchée
     $w("#button7").onClick((event) => {
         searchLocation("button");
     })
@@ -113,19 +113,17 @@ $w.onReady(function () {
         //console.log("La valeur du slider a changé : " + sliderValue);
         searchLocation("button");
     });
+    // Radio button : Fréquence
     $w('#radioGroup1').onChange((event) => {
-        // Code à exécuter lorsque la valeur de la checkbox change
         let checkboxValue = event.target.value; // Récupération de la valeur de la checkbox
-        console.log("$w('#radioGroup1').onChange((event) : " + checkboxValue);
+        //console.log("$w('#radioGroup1').onChange((event) : " + checkboxValue);
     });
+    // Checkbox Catégories
     $w('#checkboxGroup1').onChange((event) => {
-        // Code à exécuter lorsque la valeur du groupe de checkboxes change
         //let checkboxValues = event.target.value; // Récupération des valeurs des checkboxes sélectionnées
-        //console.log("$w('#checkboxGroup1').onChange((event) : " + checkboxValues);
         // Recupérer les markers correspondants au filtre
         filter = filterValues();
-        findAllAsso(filter);
-        
+        findAllAsso(filter);        
      });
 
     //recentrer la carte en fonction de la recherche
@@ -138,7 +136,7 @@ $w.onReady(function () {
         
         // Adresse recherchée
         if(comeFrom === "button"){
-            console.log("comeFrom : "+comeFrom);
+            //console.log("comeFrom : "+comeFrom);
             let $adressSearch = $w('#inputLocation');
             //let address = addressSearch.value;
             try {
@@ -146,7 +144,7 @@ $w.onReady(function () {
                 $lng = $adressSearch.value.location.longitude;
             } catch (error) {
                 // L'adresse n'est pas valide, par default : Paris
-                console.log("Impossible de géolocaliser l'adresse, routage vers Paris");
+                //console.log("Impossible de géolocaliser l'adresse, routage vers Paris");
                 $lat = 48.8566;
                 $lng = 2.3522;
             }
@@ -162,7 +160,7 @@ $w.onReady(function () {
             });
 
         } else if(comeFrom === "moveend"){
-            console.log("comeFrom : "+comeFrom);
+            //console.log("comeFrom : "+comeFrom);
             centreloc = {
                 left : left,
                 bottom : bottom,
@@ -170,82 +168,12 @@ $w.onReady(function () {
                 top : top
             }
         }
-        
         // Liste 
-        console.log("listAssociationAvecFiltre");
-        listAssociationAvecFiltre(comeFrom); //, filter);
+        //console.log("listAssociationAvecFiltre");
+        listAssociationAvecFiltre(comeFrom);
     }
 
-    //Afficher les associations dans l'onglet liste
-    function listAssociationAvecFiltre2(comeFrom){ //, filter){
-
-        //AFFICHER LES ASSO SOUS FORME DE LISTE
-        let repeater = $w('#repeter');
-        var filteredFeatures = [];
-        // Supprimer tous les éléments
-        repeater.data=[];
-        
-        wixData.query("Locations")
-            .eq("validee", "true")
-            .find()
-            .then((results) => { 
-                const itemsToAdd = [];
-                console.log("results.items.length : "+results.items.length);
-                if(results.items.length > 0){
-                    
-                    for(let i = 0; i < results.items.length; i++){
-                        const feature = results.items[i];
-                        //console.log("feature.title : "+feature.title);
-                        if(comeFrom === "button"){
-                            // Filtre distance
-                            if (spatialFilter(feature)) {
-                                filteredFeatures.push(feature);
-                            }
-                        } else if(comeFrom === "moveend"){
-                            //Si l'association est affichée dans la carte, alors l'afficher dans la liste
-                            if(feature.lat < right && left < feature.lat 
-                                && feature.lng < top && bottom < feature.lng ){
-                                    filteredFeatures.push(feature);
-                                }
-                        }
-                    }
-                    //let markersFilteredCategories = [];
-                    //markersFilteredCategories = findMarkersByCategories(filteredFeatures, filter);
-                    //markers = markersFilteredCategories;
-                    //console.log("markersFilteredCategories.length : "+markersFilteredCategories.length);
-
-                    console.log("filteredFeatures.length : "+filteredFeatures.length);
-                    if(filteredFeatures.length > 0){
-                        $w("#textNoAsso").hide();
-
-                        for (let i = 0; i < filteredFeatures.length; i++) {
-                            itemsToAdd.push(filteredFeatures[i]);
-                        }
-                        console.log("itemsToAdd.length : " + itemsToAdd.length);
-                        console.log("itemsToAdd[0]; : "+JSON.stringify(itemsToAdd[0]));
-                        console.log("itemsToAdd[0].name : "+ itemsToAdd[0].name);
-                        $w("#repeter").data = itemsToAdd;
-                        $w("#repeter").forEachItem(($item, itemData, index) => {
-                            $item("#repeterName").text = itemData.title;
-                            $item("#repeterCategorie").text = itemData.categorie1;
-                            $item("#repeterDescription").text = itemData.description;
-                            $item("#repeterSite").text = itemData.website;
-                            $item("#repeterLogo").src = itemData.logo;
-                        });
-                    } else {
-                        //Affichage/ désaffichage du texte si aucune association n'est dans le périmètre
-                        $w("#textNoAsso").show();
-                    }
-                }
-            })
-            .catch((error) => {
-                let errorMsg = error.message;
-                let code = error.code;
-                console.error("listAssociationAvecFiltre Error : "+code +" : "+errorMsg);
-            });
-    }
-//---------------------------------
-    //TODO: Recupération des markers sans appelle à la bdd
+    // Recupération des markers sans appelle à la bdd
     function listAssociationAvecFiltre(comeFrom) {
         //AFFICHER LES ASSO SOUS FORME DE LISTE
         let repeater = $w('#repeter');
@@ -253,38 +181,35 @@ $w.onReady(function () {
         // Supprimer tous les éléments
         repeater.data = [];
         let itemsToAdd = [];
-        console.log("listAssociationAvecFiltre - markers.length : " + markers.length);
-        
+        //console.log("listAssociationAvecFiltre - markers.length : " + markers.length);
+        var index = 0;
+        var arrayDistinct = [];
         for(let i=0;i<markers.length;i++){
             if (comeFrom === "button") {
                 // Filtre distance
                 if (spatialFilter(markers[i])) {
-                    filteredFeatures.push(markersWixItems[i]);
+                    if(!arrayDistinct.includes(markers[i].name)){
+                        arrayDistinct.push(markers[i].name);
+                        filteredFeatures.push(markersWixItems[i]);
+                        index++;
+                    }
+                    
                 }
             } else if (comeFrom === "moveend") {
                 //Si l'association est affichée dans la carte, alors l'afficher dans la liste
                 if (markers[i].lat < right && left < markers[i].lat &&
                     markers[i].lng < top && bottom < markers[i].lng) {
-                    filteredFeatures.push(markersWixItems[i]);
+                    if(!arrayDistinct.includes(markers[i].name)){
+                        arrayDistinct.push(markers[i].name);
+                        filteredFeatures.push(markersWixItems[i]);
+                        index++;
+                    }
                 }
+            }
+            if(index>100){
+                break;
             }
         }
-
-        /*
-        markers.forEach(function(marker) {
-            if (comeFrom === "button") {
-                // Filtre distance
-                if (spatialFilter(marker)) {
-                    filteredFeatures.push(marker);
-                }
-            } else if (comeFrom === "moveend") {
-                //Si l'association est affichée dans la carte, alors l'afficher dans la liste
-                if (marker.lat < right && left < marker.lat &&
-                    marker.lng < top && bottom < marker.lng) {
-                    filteredFeatures.push(marker);
-                }
-            }
-        }); */
 
         //console.log("filteredFeatures.length : " + filteredFeatures.length);
         if (filteredFeatures.length > 0) {
@@ -352,7 +277,7 @@ $w.onReady(function () {
 
     $w("#html2").onMessage( (event) => {
         if (event.data.type === "moveend") {
-            console.log("event.data.type === moveend");
+            //console.log("event.data.type === moveend");
             
             let receivedMessage = event.data.value;
             left = receivedMessage.varleft;
@@ -363,7 +288,7 @@ $w.onReady(function () {
             searchLocation("moveend");
 
         } else if(event.data.type === "loadAllMarkers") {
-            console.log("event.data.type === loadAllMarkers : "+markers.length);
+            //console.log("event.data.type === loadAllMarkers : "+markers.length);
             // Recupérer les markers correspondants au filtre
             //filter = filterValues();
             //findAllAsso(filter);
@@ -371,44 +296,4 @@ $w.onReady(function () {
         }
 
     });
-
-    // Mise a jour des Associations
-    function updateAssociation(){
-        console.log("6.Dans updateAssociation");
-        if(markers.length > 0){
-            var index =1;
-            markers.forEach(marker => {
-                var idAssociation = marker._id;
-                console.log("7.idAssociation: "+idAssociation);
-                var adresseAssociation = marker.address;
-                console.log("8.adresseAssociation: "+adresseAssociation);
-
-                var latitudeAssociation;
-                var longitudeAssociation;
-
-                console.log("11.latitudeAssociation / longitudeAssociation : "+latitudeAssociation +" / "+longitudeAssociation);
-                
-                // Mettre à jour les champs de l'adresse dans votre base de données Wix
-                let toUpdate = {
-                    "_id":      idAssociation,
-                    "address":  { formatted: adresseAssociation, latitude: latitudeAssociation, longitude: longitudeAssociation },
-                    "lat":      latitudeAssociation,
-                    "lng":      longitudeAssociation
-                };
-                  
-                /*return wixData.update("Locations", toUpdate)
-                    .then((results) => {
-                        console.log("12. "+results); //voir l'élément ci-dessous
-                    })
-                    .catch((err) => {
-                        console.log(err);
-                    });
-                */
-            });
-        } else {
-            console.log("13.updateAsso, markers.length = "+markers.length);
-        }
-    }
-    
-
 });
