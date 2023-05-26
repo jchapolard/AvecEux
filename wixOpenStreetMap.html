@@ -3,54 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <title>OpenSteetMap - Lib Js OpenLayers</title>
+    <!-- Inclure le fichier CSS de Bootstrap à partir d'un CDN  -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css"> 
+
     <!--style des popup-->
     <style>
-        .ol-popup {
-            position: absolute;
-            background-color: rgb(255, 230, 240);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-            padding: 15px;
-            border-radius: 20px;
-            border: 1px solid #cc0052;
-            bottom: 12px;
-            left: -50px;
-            min-width: 350px;
+        
+        /* Largeur de l'Overlay */
+        .popover-body {
+          min-width: 276px;
+        } 
+        .popover-body img {
+            width: 100%;
+            height: 100%;
         }
 
-        .ol-popup:after, .ol-popup:before {
-            top: 100%;
-            border: solid transparent;
-            content: " ";
-            height: 0;
-            width: 0;
-            position: absolute;
-            pointer-events: none;
-        }
-
-        .ol-popup:after {
-            border-top-color: white;
-            border-width: 10px;
-            left: 48px;
-            margin-left: -10px;
-        }
-
-        .ol-popup:before {
-            border-top-color: #cccccc;
-            border-width: 11px;
-            left: 48px;
-            margin-left: -11px;
-        }
-
+        /* Bouton de fermeture de la popup */
         .ol-popup-closer {
             text-decoration: none;
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 0px;
+            right: 7px;
         }
 
         .ol-popup-closer:after {
             content: "✖";
-            color: #cc0052;
+            color: gray;
             font-size: 20px;
         }
     </style>
@@ -58,15 +36,19 @@
 <body>
     
     <div id="map"></div>
-    <div id="popup" class="ol-popup">
-        <a href="#" id="popup-closer" class="ol-popup-closer"></a>
-        <div id="popup-content"></div>
-    </div>
+    <div id="popup"></div>
 </body>
 
 <!-- Bibliothèque OpenLayers -->
 <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
+
+<!-- Fichier JavaScript de Bootstrap à partir d'un CDN -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js" 
+    integrity="sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ" 
+    crossorigin="anonymous"></script>
+ 
+
 <script>
 
     var features = [];
@@ -86,17 +68,14 @@
         }
     }
     if (features.length === 0) {
-        console.log("OSM features.length === 0  --> loadAllMarkers");
+        //console.log("OSM features.length === 0  --> loadAllMarkers");
         var eventData;
         window.parent.postMessage({type: "loadAllMarkers", "value": eventData }, "*");
     } 
 
     // ------------- POP UP --------------
-    const container = document.getElementById('popup');
-    const content = document.getElementById('popup-content');
-    const closer = document.getElementById('popup-closer');
-
     //Création d'un overlay pour la popup
+    const container = document.getElementById('popup');
     var overlay = new ol.Overlay({
         element: container
     });
@@ -119,29 +98,48 @@
     });
 
     // display popup on click
+    const element = overlay.getElement();
     map.on('click', function (evt) {
         var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
             return feature;
         });
         if (feature) {
-
-            var popupContent = '<h3>' + feature.get('name') + '</h3>';
+            
+            var popupContent = '<a href="#" id="popup-closer" class="ol-popup-closer"></a>';
+            popupContent += '<img src="' + feature.get('logo') + '" alt="' + feature.get('name') + '">';
+            popupContent += '<h3>' + feature.get('name') + '</h3>';
             popupContent += '<p>' + feature.get('description') + '</p>';
             popupContent += '<a href="' + feature.get('site') + '">Site internet</a>';
 
-            content.innerHTML = popupContent;
+            //content.innerHTML = popupContent;
             const coordinate = evt.coordinate;
             overlay.setPosition(coordinate);
+            
+            // https://openlayers.org/en/latest/examples/overlay.html
+            let popover = bootstrap.Popover.getInstance(element);
+            if (popover) {
+                popover.dispose();
+            }
+            popover = new bootstrap.Popover(element, {
+                animation: false,
+                container: element,
+                content: popupContent,
+                html: true,
+                placement: 'top'
+            });
+            popover.show();
+
+            //Fermer la popup avec la croix
+            var popupCloser = document.getElementById('popup-closer');
+            popupCloser.onclick = function () {
+                overlay.setPosition(undefined);
+                popupCloser.blur();
+                return false;
+            };
         }
     });
-
-    //Fermer la popup avec la croix
-    closer.onclick = function () {
-        overlay.setPosition(undefined);
-    }
-
     
-    
+
     //Ajouter les markers issus de la BDD
     function addMarkers(markers) {
         console.log("OSM addMarkers(markers) : "+markers.length);
@@ -159,14 +157,16 @@
                     src: 'https://static.wixstatic.com/media/549eda_5c64dfd92570468db612284f56c52a46~mv2.png',
                     scale: 0.05,
                     anchor: [0.5, 1],
-                })
+                }),
+                // définition du curseur sur "pointer" lorsque la souris passe sur le point
+                cursor: 'pointer'
             });
 
         const source = new ol.source.Vector();
         
         //Ajout markers de la BDD
         markers.forEach(marker => {
-            console.log("OSM marker name : "+ marker.name);
+            //console.log("OSM marker name : "+ marker.name);
             var feature = new ol.Feature({
                 geometry: new ol.geom.Point(ol.proj.fromLonLat([marker.lng, marker.lat])),
                 longitude: marker.lng,
@@ -201,7 +201,7 @@
         // Créer un tableau vide pour stocker les fonctionnalités filtrées
         var refineFeatures = [];
         // Filtre des points à afficher
-        console.log("OSM features, longitude, latitude, rayon"+ features+" "+ longitude+" "+ latitude+" "+ filter.radius);
+        //console.log("OSM features, longitude, latitude, rayon"+ features+" "+ longitude+" "+ latitude+" "+ filter.radius);
         refineFeatures = filteredFeatures(features, longitude, latitude, filter);
         
         // Calcul du niveau de zoom et du centre de la carte en fonction des points
@@ -209,11 +209,11 @@
         var extent = ol.extent.createEmpty();
 
         // Parcourir le tableau de features et étendre l'extent avec les coordonnées de chaque feature
-        if (refineFeatures.length === 0) {
+        /*if (refineFeatures.length === 0) {
             console.log("OSM refineFeatures - Le tableau est vide.");
         } else {
             console.log("OSM refineFeatures - Le tableau contient : "+refineFeatures.length+" éléments.");
-        }
+        } */
 
         refineFeatures.forEach(function(feature) {
             ol.extent.extend(extent, feature.getGeometry().getExtent());
@@ -289,7 +289,7 @@
     // La fonction 'moveend' écoute les changements de la carte 
     map.on('moveend', function () {
         debounceMoveEnd();
-        console.log("OSM moveend : Changement carte");
+        //console.log("OSM moveend : Changement carte");
 
         //récuperer les cooordonnées des coins de la map affichée
         let extent = map.getView().calculateExtent(map.getSize());
@@ -301,7 +301,7 @@
         var right = box[3];
         var top = box[2];
 
-        console.log("OSM --------------- box[0]" + box[0]);
+        //console.log("OSM --------------- box[0]" + box[0]);
 
         //renvoyer les données de la carte à la page wix
         var eventData = {
@@ -321,7 +321,7 @@
             var featureLatitude = feature.get('latitude');
             var featureLongitude = feature.get('longitude');
             const dist = distance(latitude, longitude, featureLatitude, featureLongitude);
-           // console.log("OSM spatialFilter(feature) : "+latitude+" /"+ longitude+" /"+ featureLatitude+" /"+ featureLongitude);
+           //console.log("OSM spatialFilter(feature) : "+latitude+" /"+ longitude+" /"+ featureLatitude+" /"+ featureLongitude);
             //console.log("OSM distance < radius : "+dist +" < "+ filter.radius);
             return dist < filter.radius;
         }

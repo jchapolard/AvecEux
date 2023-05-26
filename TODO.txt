@@ -21,3 +21,10 @@ RAF :
 - Raccorder : Fréquence
 - scc Popup (a voir avec le site actuel)
 - Factorisation sur la requete de la liste des associations
+
+26/05/2023
+RAF : 
+- Raccorder : Fréquence -->Mieux connaitre le fonctionnel.
+- Implémenter "Entrer votre recherche" avec un moteur de recherche --> import wixSearch from 'wix-search';
+
+

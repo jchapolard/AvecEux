@@ -1,11 +1,37 @@
+// Source js : https://www.wix.com/velo/reference
+
 import wixData from 'wix-data';
+import wixWindow from 'wix-window';
 
 $w.onReady(function () {
     var latitude, longitude;
+    var userGeolocalisation = false;
     var left, right, bottom, top;
     var markers, markersWixItems;
     var filter, centreloc;
 
+    // WINDOWS -------------------
+    // Fonction pour récupérer la géolocalisation
+    function getGeolocation() {
+        wixWindow.getCurrentGeolocation()
+        .then((position) => {
+            // Succès : position géographique récupérée
+            latitude = position.coords.latitude;
+            longitude = position.coords.longitude;
+            //console.log('User Géolocalisation - Latitude:', latitude);
+            //console.log('User Géolocalisation - Longitude:', longitude);
+            userGeolocalisation = true;
+        })
+        .catch((error) => {
+            // Erreur : impossible de récupérer la position géographique
+            console.error('Erreur de géolocalisation:', error);
+        });
+    }
+  
+    // Appel de la fonction pour récupérer la géolocalisation
+    getGeolocation();
+
+    // FILTRES - MARKERS--------
     // Par default cacher le texte "aucune association"
     $w("#textNoAsso").hide();
     
@@ -92,20 +118,25 @@ $w.onReady(function () {
     function findMarkersByCategories(markers, filter, markersWixItems, markersWixFilterdCategories) {
         //console.log("findMarkersByCategories");
         let arrayMarkersCopy = [];
-        //for (const marker of markers) {
         for(let i=0;i<markers.length;i++){
             if (filter.categories.some(category => markers[i].categorie.includes(category))) {
               arrayMarkersCopy.push(markers[i]);
               markersWixFilterdCategories.push(markersWixItems[i]);
             }
         }       
-        //console.log("arrayMarkersCopy.length: " + arrayMarkersCopy.length);
+        //console.log("findMarkersByCategories : " + arrayMarkersCopy.length);
         return arrayMarkersCopy;
     }
 
     //Click bouton Loupe - Recherche ville, centre la carte sur la location cherchée
     $w("#button7").onClick((event) => {
         searchLocation("button");
+    })
+    // Géolocalisation de l'utiisateur : centre la carte sur la localisation de l'utilisateur
+    $w("#button8").onClick((event) => {
+        getGeolocation();
+        filter = filterValues();
+        findAllAsso(filter);
     })
     // Changement de valeur du slider
     $w("#slider1").onChange((event) => {
@@ -137,21 +168,27 @@ $w.onReady(function () {
         // Adresse recherchée
         if(comeFrom === "button"){
             //console.log("comeFrom : "+comeFrom);
-            let $adressSearch = $w('#inputLocation');
-            //let address = addressSearch.value;
-            try {
-                $lat = $adressSearch.value.location.latitude;
-                $lng = $adressSearch.value.location.longitude;
-            } catch (error) {
-                // L'adresse n'est pas valide, par default : Paris
-                //console.log("Impossible de géolocaliser l'adresse, routage vers Paris");
-                $lat = 48.8566;
-                $lng = 2.3522;
+            // Utilisation des données long/lat de la fonction getGeolocation
+            if(userGeolocalisation === true){
+                $lat = latitude;
+                $lng = longitude;
+            } else {
+                let $adressSearch = $w('#inputLocation');
+                //let address = addressSearch.value;
+                try {
+                    $lat = $adressSearch.value.location.latitude;
+                    $lng = $adressSearch.value.location.longitude;
+                } catch (error) {
+                    // L'adresse n'est pas valide, par default : Paris
+                    //console.log("Impossible de géolocaliser l'adresse, routage vers Paris");
+                    $lat = 48.8566;
+                    $lng = 2.3522;
+                }
+                latitude = $lat;
+                longitude = $lng;
             }
             centreloc = {lat: $lat, lng: $lng};
-            latitude = $lat;
-            longitude = $lng;
-
+            
             // Map OSM
             $w('#html2').postMessage({ 
                 type: 'SEARCH_LOCATION', 
@@ -168,6 +205,7 @@ $w.onReady(function () {
                 top : top
             }
         }
+        userGeolocalisation = false;
         // Liste 
         //console.log("listAssociationAvecFiltre");
         listAssociationAvecFiltre(comeFrom);
