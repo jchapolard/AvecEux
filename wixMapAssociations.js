@@ -1,4 +1,4 @@
-// Source js : https://www.wix.com/velo/reference
+// Référence API Velo : https://www.wix.com/velo/reference/api-overview/introduction
 
 import wixData from 'wix-data';
 import wixWindow from 'wix-window';
@@ -10,7 +10,32 @@ $w.onReady(function () {
     var markers, markersWixItems;
     var filter, centreloc;
 
+    // Tabs - Onglets
+    // Default behavior
+    $w("#box8").hide();
+    $w("#html2").show();
+    // List
+    $w("#button5").onClick((event) => {
+        $w("#html2").hide();
+        $w("#box8").show('fade', { duration: 600 }).then(() => {});
+    });
+    // Map
+    $w("#button6").onClick((event) => {
+        $w("#box8").hide();
+        $w("#html2").show('fade', { duration: 700 }).then(() => {});
+    });
+    // Filter
+    $w("#button7").onClick((event) => {
+        if($w("#box6").isVisible){
+            $w("#box6").hide('fade', { duration: 500 }).then(() => {});
+        } else {
+             $w("#box6").show('fade', { duration: 500 }).then(() => {});
+        }
+    });
+
     // WINDOWS -------------------
+    // Appel de la fonction pour récupérer la géolocalisation
+    getGeolocation();
     // Fonction pour récupérer la géolocalisation
     function getGeolocation() {
         wixWindow.getCurrentGeolocation()
@@ -28,9 +53,6 @@ $w.onReady(function () {
         });
     }
   
-    // Appel de la fonction pour récupérer la géolocalisation
-    getGeolocation();
-
     // FILTRES - MARKERS--------
     // Par default cacher le texte "aucune association"
     $w("#textNoAsso").hide();
@@ -38,8 +60,7 @@ $w.onReady(function () {
     // Récupération des filtres 
     function filterValues(){
         // Récupère les valeurs du filtre
-        var radius = $w("#slider1").value;
-        var frequencyRadioGroup = $w('#radioGroup1').value;
+        var radius = $w("#slider3").value;
         // Récupérer la valeur unique de la case à cocher sélectionnée
         var activityCheckbox = $w('#checkboxGroup1').value.toString();
         //console.log("filterValues - activityCheckbox  "+activityCheckbox);
@@ -52,7 +73,6 @@ $w.onReady(function () {
         
         filter = {
             radius: radius,
-            frequency: frequencyRadioGroup,
             categories: valeursActivites,
             numberCategories: valeursActivites.length
         }
@@ -111,7 +131,7 @@ $w.onReady(function () {
             .catch((error) => {
                 let errorMsg = error.message;
                 let code = error.code;
-                console.error("findAllAsso Error : "+code +" : "+errorMsg);
+                //console.error("findAllAsso Error : "+code +" : "+errorMsg);
             });
     }
     
@@ -129,29 +149,26 @@ $w.onReady(function () {
     }
 
     //Click bouton Loupe - Recherche ville, centre la carte sur la location cherchée
-    $w("#button7").onClick((event) => {
+    $w("#button4").onClick((event) => {
+        userGeolocalisation = false;
         searchLocation("button");
     })
     // Géolocalisation de l'utiisateur : centre la carte sur la localisation de l'utilisateur
-    $w("#button8").onClick((event) => {
+    $w("#button3").onClick((event) => {
         getGeolocation();
         filter = filterValues();
         findAllAsso(filter);
     })
     // Changement de valeur du slider
-    $w("#slider1").onChange((event) => {
+    $w("#slider3").onChange((event) => {
         //let sliderValue = event.target.value;
         //console.log("La valeur du slider a changé : " + sliderValue);
         searchLocation("button");
     });
-    // Radio button : Fréquence
-    $w('#radioGroup1').onChange((event) => {
-        let checkboxValue = event.target.value; // Récupération de la valeur de la checkbox
-        //console.log("$w('#radioGroup1').onChange((event) : " + checkboxValue);
-    });
     // Checkbox Catégories
     $w('#checkboxGroup1').onChange((event) => {
         //let checkboxValues = event.target.value; // Récupération des valeurs des checkboxes sélectionnées
+        //console.log("checkboxValues : "+checkboxValues);
         // Recupérer les markers correspondants au filtre
         filter = filterValues();
         findAllAsso(filter);        
@@ -168,25 +185,27 @@ $w.onReady(function () {
         // Adresse recherchée
         if(comeFrom === "button"){
             //console.log("comeFrom : "+comeFrom);
+            let $adressSearch = $w('#inputLocation');
+            //let address = addressSearch.value;
+            try {
+                $lat = $adressSearch.value.location.latitude;
+                $lng = $adressSearch.value.location.longitude;
+            } catch (error) {
+                // L'adresse n'est pas valide, par default : Paris
+                //console.log("Impossible de géolocaliser l'adresse, routage vers Paris");
+                $lat = 48.8566;
+                $lng = 2.3522;
+            }
             // Utilisation des données long/lat de la fonction getGeolocation
             if(userGeolocalisation === true){
+                //console.log("userGeolocalisation === true");
+                //console.log("latitude : "+latitude);
                 $lat = latitude;
                 $lng = longitude;
-            } else {
-                let $adressSearch = $w('#inputLocation');
-                //let address = addressSearch.value;
-                try {
-                    $lat = $adressSearch.value.location.latitude;
-                    $lng = $adressSearch.value.location.longitude;
-                } catch (error) {
-                    // L'adresse n'est pas valide, par default : Paris
-                    //console.log("Impossible de géolocaliser l'adresse, routage vers Paris");
-                    $lat = 48.8566;
-                    $lng = 2.3522;
-                }
-                latitude = $lat;
-                longitude = $lng;
             }
+            latitude = $lat;
+            longitude = $lng;
+                
             centreloc = {lat: $lat, lng: $lng};
             
             // Map OSM
@@ -205,7 +224,6 @@ $w.onReady(function () {
                 top : top
             }
         }
-        userGeolocalisation = false;
         // Liste 
         //console.log("listAssociationAvecFiltre");
         listAssociationAvecFiltre(comeFrom);
@@ -274,8 +292,6 @@ $w.onReady(function () {
         }
     }
 
-
-//----------------
     // Filtrer les fonctionnalités qui se trouvent à moins de x mètres du point de référence
     function spatialFilter(feature) {
         var featureLatitude = feature.lat;
