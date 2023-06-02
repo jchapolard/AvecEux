@@ -15,6 +15,18 @@ a créer :
 - Raccorder : Fréquence
 - scc Popup (a voir avec le site actuel)
 
+12/05/2023
+Problèmes rencontrés et in progress :
+-	Avec la bdd Catégorie, impossible de checked par default les checkbox du filtre. 
+-	Importer les Associations dans BddAssociations : Fichier à reprendre :
+o	Catégories : sante | divertissement | protection | aideHandicap | rêves | enfantsMonde | autre ?? (autre quoi ?)
+o	Création d’une colonne Mot Clés avec les mots qui peuvent être utiliser dans la barre de recherche global (au-dessus de l’onglet)
+-	J’ai un problème pour géolocaliser l’utilisateur. Wix ne me permet pas d’utiliser l’API Html5 de géolocalisation. Je continue à chercher d’autre méthode.
+TODO Liste :
+- SCC de la Popup (voir avec le site actuel)
+- Raccorder le filtre Fréquence 
+- Mettre à jour la bdd Associations avec la longitude/latitude des associations
+
 18/05/2023
 RAF :
 - Implémenter Localisation
@@ -27,4 +39,11 @@ RAF :
 - Raccorder : Fréquence -->Mieux connaitre le fonctionnel.
 - Implémenter "Entrer votre recherche" avec un moteur de recherche --> import wixSearch from 'wix-search';
 
+
+01/06/2023
+RAF
+- Tout ok pour Association. En attente de remarque
+- Missions : Ajouter des missions tests dans la BDDMissions
+- Finir d'implémenter l'input Rechercher par mots clés
+- Finir le CSS / données de l'overlay. A voir avec Marion et Coraline
 
