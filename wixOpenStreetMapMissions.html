@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>OpenSteetMap - Lib Js OpenLayers / Associations</title>
+    <title>OpenSteetMap - Lib Js OpenLayers / Missions</title>
     <!-- Inclure le fichier CSS de Bootstrap à partir d'un CDN  -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css"> 
 
@@ -126,12 +126,11 @@
         if (feature) {
             
             var popupContent = '<a href="#" id="popup-closer" class="ol-popup-closer"></a>';
-            popupContent += '<img src="' + feature.get('logo') + '" alt="' + feature.get('name') + '">';
-            popupContent += '<h3>' + feature.get('name') + '</h3>';
-            popupContent += '<p><strong>' + feature.get('categorie') + '</strong><br>';
-            popupContent += feature.get('description') + '</p>';
-            popupContent += '<a href="' + feature.get('site') + '">Site internet</a>';
-
+            //popupContent += '<img src="' + feature.get('logo') + '" alt="' + feature.get('name') + '">';
+            popupContent += '<h3>' + feature.get('titreMission') + '</h3>';
+            popupContent += '<p><strong>' + feature.get('type') + " - " + feature.get('categorie') + '</strong></p>';
+            popupContent += '<p>' + feature.get('description') + '</p>';
+			
             //content.innerHTML = popupContent;
             // Obtenir les coordonnées de la fonctionnalité
             var coordinate = feature.getGeometry().getCoordinates();
@@ -194,11 +193,15 @@
                 geometry: new ol.geom.Point(ol.proj.fromLonLat([marker.lng, marker.lat])),
                 longitude: marker.lng,
                 latitude: marker.lat,
-                name: marker.name,
+                titreMission: marker.titreMission,
+                type: marker.type,
+                nameAssociation: marker.nameAssociation,
+                address: marker.address,
+                categorie: marker.categorie,
                 description: marker.description,
-                site: marker.site,
-                logo: marker.logo,
-                categorie: marker.categorie
+                frequence: marker.frequence,
+                presentiel: marker.presentiel,
+                
             });
             feature.setStyle(stylePosition);
             source.addFeature(feature);

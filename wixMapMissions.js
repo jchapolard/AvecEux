@@ -10,6 +10,46 @@ $w.onReady(function () {
     var markers, markersWixItems;
     var filter, centreloc;
 
+    // Tabs - Onglets
+    // Default behavior
+    $w("#box8").hide();
+    $w("#html2").show();
+    $w("#repeterNameAssociation").hide();
+
+    // List
+    $w("#button5").onClick((event) => {
+        $w("#html2").hide();
+        $w("#box8").show('fade', { duration: 600 }).then(() => {});
+    });
+    // Map
+    $w("#button6").onClick((event) => {
+        $w("#box8").hide();
+        $w("#html2").show('fade', { duration: 700 }).then(() => {});
+    });
+    // Filter
+    $w("#button9").onClick((event) => {
+        if($w("#box1").isVisible){
+            $w("#box1").hide('fade', { duration: 500 }).then(() => {});
+        } else {
+             $w("#box1").show('fade', { duration: 500 }).then(() => {});
+        }
+    });
+
+    // Liste - Bouton "voir le nom Association"
+    $w("#repeter").onItemReady(($item, itemData, index) => {
+        const button = $item("#repeterVoirPlus"); // Replace "buttonId" with the actual ID of your button
+    
+        // Set the onClick event handler for the button
+        button.onClick((event) => {
+            $w("#repeterNameAssociation").show();
+            $w("#repeterVoirPlus").hide();
+            // You can access the item data and index if needed
+            //console.log("Button clicked in repeater at index:", index);
+            //console.log("Item data:", itemData);
+        });
+    });
+
+
     // WINDOWS -------------------
     // Appel de la fonction pour récupérer la géolocalisation
     getGeolocation();
@@ -32,13 +72,16 @@ $w.onReady(function () {
 
     // FILTRES - MARKERS--------
     // Par default cacher le texte "aucune association"
-    $w("#textNoAsso").hide();
+    $w("#textNoMission").hide();
     
     // Récupération des filtres 
     function filterValues(){
         // Récupère les valeurs du filtre
         var radius = $w("#slider1").value;
         var frequencyRadioGroup = $w('#radioGroup1').value;
+        if(frequencyRadioGroup === "noPreference"){ // ponctuel ; recurrent ; noPreference
+            frequencyRadioGroup = "";
+        }
         // Récupérer la valeur unique de la case à cocher sélectionnée
         var activityCheckbox = $w('#checkboxGroup1').value.toString();
         //console.log("filterValues - activityCheckbox  "+activityCheckbox);
@@ -69,11 +112,15 @@ $w.onReady(function () {
         }
         //console.log("filter.categories.length : "+filter.categories.length);
 
-        wixData.query("Locations")
-            .eq("validee", "true")
-            .contains("categorie1", valeurCategorie)
-            //.ne("lat", "")
-            //.ne("lng", "")
+        let categorieQuery = wixData.query("Missions")
+            .eq("type", "Mission")
+            .contains("categorie", valeurCategorie);
+
+        let frequenceQuery = wixData.query("Missions")
+            .eq("type", "Mission")
+            .contains("frequence", filter.frequency);
+
+        categorieQuery.and(frequenceQuery)
             .limit(1000) // Spécifiez la limite pour récupérer toutes les lignes
             .find()
             .then((results) => {
@@ -81,14 +128,16 @@ $w.onReady(function () {
                 markers = results.items.map(item => ({
                     _id: item._id,
                     id: item.id,
-                    name: item.title,
-                    address: item.adresseSiege,
-                    lat: item.lat,
-                    lng: item.lng,
-                    categorie: item.categorie1,
+                    titreMission: item.title,
+                    type: item.type,
+                    nameAssociation: item.association,
+                    address: item.adresseMission,
+                    lat: item.latitude,
+                    lng: item.longitude,
+                    categorie: item.categorie,
                     description: item.description,
-                    logo: item.logo,
-                    website: item.website
+                    frequence: item.frequence,
+                    presentiel: item.presentiel
                 }));
                 markersWixItems = results.items; // Tableau des objets résultants
                 //const count = markersWixItems.length; // Nombre d'objets dans le tableau
@@ -127,14 +176,9 @@ $w.onReady(function () {
         return arrayMarkersCopy;
     }
 
-    // Onglet
-    $w("tabs1").onChange((event) => {
-        let currentTabLabel = event.target.currentTab.label; // "Second Tab"
-        console.log("currentTabLabel : "+currentTabLabel);
-      });
-
     //Click bouton Loupe - Recherche ville, centre la carte sur la location cherchée
     $w("#button7").onClick((event) => {
+        userGeolocalisation = false;
         searchLocation("button");
     })
     // Géolocalisation de l'utiisateur : centre la carte sur la localisation de l'utilisateur
@@ -151,8 +195,10 @@ $w.onReady(function () {
     });
     // Radio button : Fréquence
     $w('#radioGroup1').onChange((event) => {
-        let checkboxValue = event.target.value; // Récupération de la valeur de la checkbox
+        //let checkboxValue = event.target.value; // Récupération de la valeur de la checkbox
         //console.log("$w('#radioGroup1').onChange((event) : " + checkboxValue);
+        filter = filterValues();
+        findAllAsso(filter);
     });
     // Checkbox Catégories
     $w('#checkboxGroup1').onChange((event) => {
@@ -173,25 +219,27 @@ $w.onReady(function () {
         // Adresse recherchée
         if(comeFrom === "button"){
             //console.log("comeFrom : "+comeFrom);
+            let $adressSearch = $w('#inputLocation');
+            //let address = addressSearch.value;
+            try {
+                $lat = $adressSearch.value.location.latitude;
+                $lng = $adressSearch.value.location.longitude;
+            } catch (error) {
+                // L'adresse n'est pas valide, par default : Paris
+                //console.log("Impossible de géolocaliser l'adresse, routage vers Paris");
+                $lat = 48.8566;
+                $lng = 2.3522;
+            }
             // Utilisation des données long/lat de la fonction getGeolocation
             if(userGeolocalisation === true){
+                //console.log("userGeolocalisation === true");
+                //console.log("latitude : "+latitude);
                 $lat = latitude;
                 $lng = longitude;
-            } else {
-                let $adressSearch = $w('#inputLocation');
-                //let address = addressSearch.value;
-                try {
-                    $lat = $adressSearch.value.location.latitude;
-                    $lng = $adressSearch.value.location.longitude;
-                } catch (error) {
-                    // L'adresse n'est pas valide, par default : Paris
-                    //console.log("Impossible de géolocaliser l'adresse, routage vers Paris");
-                    $lat = 48.8566;
-                    $lng = 2.3522;
-                }
-                latitude = $lat;
-                longitude = $lng;
             }
+            latitude = $lat;
+            longitude = $lng;
+                
             centreloc = {lat: $lat, lng: $lng};
             
             // Map OSM
@@ -210,7 +258,6 @@ $w.onReady(function () {
                 top : top
             }
         }
-        userGeolocalisation = false;
         // Liste 
         //console.log("listAssociationAvecFiltre");
         listAssociationAvecFiltre(comeFrom);
@@ -256,7 +303,7 @@ $w.onReady(function () {
 
         //console.log("filteredFeatures.length : " + filteredFeatures.length);
         if (filteredFeatures.length > 0) {
-            $w("#textNoAsso").hide();
+            $w("#textNoMission").hide();
             
             for (let i = 0; i < filteredFeatures.length; i++) {
                 itemsToAdd.push(filteredFeatures[i]);
@@ -267,15 +314,17 @@ $w.onReady(function () {
             
             $w("#repeter").data = itemsToAdd;
             $w("#repeter").forEachItem(($item, itemData, index) => {
-                $item("#repeterName").text = itemData.title;
-                $item("#repeterCategorie").text = itemData.categorie1;
+                $item("#repeterNameMission").text = itemData.title;
+                $item("#repeterNameAssociation").text = itemData.association;
+                $item("#repeterType").text = itemData.type;
+                $item("#repeterCategorie").text = itemData.categorie;
                 $item("#repeterDescription").text = itemData.description;
-                $item("#repeterSite").text = itemData.website;
-                $item("#repeterLogo").src = itemData.logo;
+                //$item("#repeterSite").text = itemData.website;
+                //$item("#repeterLogo").src = itemData.logo;
             });
         } else {
             //Affichage/ désaffichage du texte si aucune association n'est dans le périmètre
-            $w("#textNoAsso").show();
+            $w("#textNoMission").show();
         }
     }
 
@@ -339,4 +388,72 @@ $w.onReady(function () {
         }
 
     });
+
+    
+    // ----------Input Rechercher--------------
+    // Récupérer la référence de l'input
+    let inputSearch = $w('#input1');
+     // Événement "input" pour détecter les changements dans l'input de recherche
+    inputSearch.onInput((event) => {
+        userGeolocalisation = true;
+        // Récupérer la valeur saisie dans l'input
+        const searchTerm = event.target.value;
+        searchLocations(searchTerm);
+    });
+
+    // Fonction pour effectuer la recherche
+    function searchLocations(searchTerm) {
+    // Effectuer la requête avec les filtres
+    wixData.query("Locations")
+        .eq("validee", "true")
+        .contains('description', searchTerm)
+        .or(
+            wixData.query("Locations")
+            .eq("validee", "true")
+            .contains('title', searchTerm) 
+        )
+        .find()
+        .then(results => {
+            markers = results.items.map(item => ({
+                _id: item._id,
+                id: item.id,
+                name: item.title,
+                address: item.adresseSiege,
+                lat: item.lat,
+                lng: item.lng,
+                categorie: item.categorie1,
+                description: item.description,
+                logo: item.logo,
+                website: item.website
+            }));
+            let items = results.items;
+            items.forEach(item => {
+                //console.log("Title: " + item.title);
+                //console.log("Categorie: " + item.categorie1);
+                latitude = item.lat;
+                longitude = item.lng;
+            });
+            markersWixItems = results.items; // Tableau des objets résultants
+            //const count = markersWixItems.length; // Nombre d'objets dans le tableau
+            //console.log("Nombre d'objets dans markersWixItems: " + count);
+
+            //console.log("=====> findAllAsso, nombre de markers : "+markers.length);
+            /*
+            if(filter.numberCategories > 1){
+                let markersFilteredCategories = [];
+                let markersWixFilterdCategories = [];
+                markersFilteredCategories = findMarkersByCategories(markers, filter, markersWixItems, markersWixFilterdCategories);
+                markers = markersFilteredCategories;
+                markersWixItems = markersWixFilterdCategories;
+            } */
+            // Envoyer les marqueurs à l'élément HTML en utilisant postMessage
+            $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });             
+            searchLocation("button");
+        })
+        .catch(error => {
+        // Gérer les erreurs de la requête
+        console.error(error);
+        });
+    }
+
 });
