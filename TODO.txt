@@ -47,3 +47,25 @@ RAF
 - Finir d'implémenter l'input Rechercher par mots clés
 - Finir le CSS / données de l'overlay. A voir avec Marion et Coraline
 
+A discuter :
+Table BDDMissions : 
+- j'ai modifier le nom de l'association (type :texte)
+- J'ai ajouter la catégorie : peut être différente avec celle de l'association et chaque missions peuvent avoir une catégorie différente
+- Il manque une date de début et une date de fin
+- Sur Association : Desoomer jusqu'a un point marker
+- Desactiver le répéteur pour ne pas avoir de blanc
+- lors de la supression des catégorie, que la carte ne bouge pas
+- supprimer tous les points lors que pas de catégorie
+- adapter la zone de filtre à l'écran
+- diminuer l'espacement entre les catégories
+- voir le champs de texte missions
+
+01/07/2023
+Correctif écran Assocations :
+- Nouvelle présentation du pavé filtre avec des tags Catégories ou lieu d'un filtre vertical avec des boutons radio
+- Lors de la recherche, pas de mouvement de zoom,
+- Gestion du zoom de focalisation lors d'une recherche : exclusion des zooms trop raprochés et gestion des zones vides par un dézoom sur une zone plus large.
+- Suppression des espaces blancs entre la hauteur de la carte et de la liste
+- Si aucun tag catégorie n'est séléectionné, aucun point sur la carte n'est affiché
+- 
+- 

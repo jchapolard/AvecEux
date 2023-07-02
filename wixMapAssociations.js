@@ -4,38 +4,45 @@ import wixData from 'wix-data';
 import wixWindow from 'wix-window';
 
 $w.onReady(function () {
-    var latitude, longitude;
-    var userGeolocalisation = false;
+    var latitude, longitude, oldLat, oldLong;
+    var userGeolocalisation = false, listTab = false, mapTab = false;
     var left, right, bottom, top;
     var markers, markersWixItems;
-    var filter, centreloc;
+    var filter, centreloc, zoom;
 
     // Tabs - Onglets
     // Default behavior
-    $w("#box8").hide();
+    $w("#repeter").hide();
     $w("#html2").show();
     // List
     $w("#button5").onClick((event) => {
+        listTab = true;
+        mapTab = false
         $w("#html2").hide();
-        $w("#box8").show('fade', { duration: 600 }).then(() => {});
+        searchLocation("button");
+        listAssociationAvecFiltre("button");
+        $w("#repeter").restore();
+        $w("#repeter").show('fade', { duration: 700 });
     });
     // Map
     $w("#button6").onClick((event) => {
-        $w("#box8").hide();
-        $w("#html2").show('fade', { duration: 700 }).then(() => {});
+        listTab = false;
+        mapTab = true;
+        $w("#repeter").delete();
+        $w("#html2").show('fade', { duration: 700 });
     });
     // Filter
-    $w("#button7").onClick((event) => {
+    /*$w("#button7").onClick((event) => {
         if($w("#box6").isVisible){
             $w("#box6").hide('fade', { duration: 500 }).then(() => {});
         } else {
              $w("#box6").show('fade', { duration: 500 }).then(() => {});
         }
-    });
-
+    }); */
+    
     // WINDOWS -------------------
     // Appel de la fonction pour récupérer la géolocalisation
-    getGeolocation();
+    //getGeolocation();
     // Fonction pour récupérer la géolocalisation
     function getGeolocation() {
         wixWindow.getCurrentGeolocation()
@@ -45,7 +52,7 @@ $w.onReady(function () {
             longitude = position.coords.longitude;
             //console.log('User Géolocalisation - Latitude:', latitude);
             //console.log('User Géolocalisation - Longitude:', longitude);
-            userGeolocalisation = true;
+            searchLocation("button");
         })
         .catch((error) => {
             // Erreur : impossible de récupérer la position géographique
@@ -61,8 +68,15 @@ $w.onReady(function () {
     function filterValues(){
         // Récupère les valeurs du filtre
         var radius = $w("#slider3").value;
+        zoom = radius;
+        //console.log(typeof radius);
+        console.log("zoomSlider : "+radius);
+        radius = convertZoomToKilometers(radius);
+        console.log("convertZoomToKilometers : "+ radius);
         // Récupérer la valeur unique de la case à cocher sélectionnée
-        var activityCheckbox = $w('#checkboxGroup1').value.toString();
+        //var activityCheckbox = $w('#checkboxGroup1').value.toString();
+        // Récupération des valeurs des Tags Catégories
+        var activityCheckbox = $w('#selectionTags1').value.toString();
         //console.log("filterValues - activityCheckbox  "+activityCheckbox);
         //let valeursActivites = activityCheckbox.split(","); // Convertit la chaîne en tableau
         let valeursActivites = activityCheckbox.split(",").map(function(item) {
@@ -93,8 +107,8 @@ $w.onReady(function () {
         wixData.query("Locations")
             .eq("validee", "true")
             .contains("categorie1", valeurCategorie)
-            //.ne("lat", "")
-            //.ne("lng", "")
+            .ne("lat", 0) // Exclusion des associations sans coodonnées latitude et longitude renseignées en bdd
+            .ne("lng", 0)
             .limit(1000) // Spécifiez la limite pour récupérer toutes les lignes
             .find()
             .then((results) => {
@@ -126,12 +140,12 @@ $w.onReady(function () {
                 }
                 // Envoyer les marqueurs à l'élément HTML en utilisant postMessage
                 $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });             
-                searchLocation("button");                
+                //searchLocation("button");                
             })
             .catch((error) => {
                 let errorMsg = error.message;
                 let code = error.code;
-                //console.error("findAllAsso Error : "+code +" : "+errorMsg);
+                console.error("findAllAsso Error : "+code +" : "+errorMsg);
             });
     }
     
@@ -155,26 +169,123 @@ $w.onReady(function () {
     })
     // Géolocalisation de l'utiisateur : centre la carte sur la localisation de l'utilisateur
     $w("#button3").onClick((event) => {
+        userGeolocalisation = true;
         getGeolocation();
-        filter = filterValues();
-        findAllAsso(filter);
     })
     // Changement de valeur du slider
     $w("#slider3").onChange((event) => {
-        //let sliderValue = event.target.value;
-        //console.log("La valeur du slider a changé : " + sliderValue);
-        searchLocation("button");
+        let sliderValue = event.target.value;
+        var maxZoom = $w("#slider3").max; // Récupérer la valeur maximale du slider
+        var zoom = maxZoom - sliderValue; // convertKilometersToZoom(sliderValueKilometers, maxValue);
+        //console.log("La valeur du slider a changé : " + zoom);
+        
+        $w('#html2').postMessage({ 
+            type: 'ZOOM_LEVEL', zoom: zoom
+        });
+
+        if(listTab == true){
+            searchLocation("button");
+            listAssociationAvecFiltre("button");
+        }
     });
+
+    // Tag Catégories
+    $w('#selectionTags1').onChange(function (event) {
+        // Récupérez la valeur sélectionnée
+        var selectedValue = event.target.value.length;
+        //console.log("$w('#selectionTags1').length : "+selectedValue);
+        if(selectedValue == 0){
+            markers = [];
+            $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });
+        }else{
+            // Recupérer les markers correspondants au filtre
+            filter = filterValues();
+            findAllAsso(filter);
+        }
+        
+          
+    });
+
     // Checkbox Catégories
-    $w('#checkboxGroup1').onChange((event) => {
+    /*$w('#checkboxGroup1').onChange((event) => {
         //let checkboxValues = event.target.value; // Récupération des valeurs des checkboxes sélectionnées
         //console.log("checkboxValues : "+checkboxValues);
         // Recupérer les markers correspondants au filtre
         filter = filterValues();
         findAllAsso(filter);        
-     });
+     }); */
 
-    //recentrer la carte en fonction de la recherche
+    // Slider : Convertion d'une la valeur du slider Zoom OpenLayers (0 -> 18) en kilometre 
+    function convertZoomToKilometers (zoom){
+        zoom = 18 - zoom;
+        var distance;
+        
+        switch (zoom) {
+            case 0:
+                distance = 10000;
+                break;
+            case 1:
+                distance = 5000;
+                break;
+            case 2:
+                distance = 2500;
+                break;
+            case 3:
+                distance = 1000;
+                break;
+            case 4:
+                distance = 500;
+                break;
+            case 5:
+                distance = 250;
+                break;
+            case 6:
+                distance = 125;
+                break;
+            case 7:
+                distance = 62.5;
+                break;
+            case 8:
+                distance = 31.25;
+                break;
+            case 9:
+                distance = 15.625;
+                break;
+            case 10:
+                distance = 7.813;
+                break;
+            case 11:
+                distance = 3.906;
+                break;
+            case 12:
+                distance = 1.953;
+                break;
+            case 13:
+                distance = 0.977;
+                break;
+            case 14:
+                distance = 0.488;
+                break;
+            case 15:
+                distance = 0.244;
+                break;
+            case 16:
+                distance = 0.122;
+                break;
+            case 17:
+                distance = 0.061;
+                break;
+            case 18:
+                distance = 0.031;
+                break;
+            default:
+                distance = 60; // zoom 7 - Valeur par défaut si le zoom est invalide
+                break;
+        }
+        return distance;
+    }
+
+    // Centrer la carte en fonction de la recherche géographique
     function searchLocation(comeFrom){
         
         let $lat;
@@ -185,35 +296,51 @@ $w.onReady(function () {
         // Adresse recherchée
         if(comeFrom === "button"){
             //console.log("comeFrom : "+comeFrom);
-            let $adressSearch = $w('#inputLocation');
-            //let address = addressSearch.value;
-            try {
-                $lat = $adressSearch.value.location.latitude;
-                $lng = $adressSearch.value.location.longitude;
-            } catch (error) {
-                // L'adresse n'est pas valide, par default : Paris
-                //console.log("Impossible de géolocaliser l'adresse, routage vers Paris");
-                $lat = 48.8566;
-                $lng = 2.3522;
-            }
+
             // Utilisation des données long/lat de la fonction getGeolocation
             if(userGeolocalisation === true){
-                //console.log("userGeolocalisation === true");
+                console.log("userGeolocalisation === true");
                 //console.log("latitude : "+latitude);
                 $lat = latitude;
                 $lng = longitude;
+            } else {
+                let $adressSearch = $w('#inputLocation');
+                //let address = addressSearch.value;
+                try {
+                    $lat = $adressSearch.value.location.latitude;
+                    $lng = $adressSearch.value.location.longitude;
+                } catch (error) {
+                    // L'adresse n'est pas valide, par default : Paris
+                    console.log("Impossible de géolocaliser l'adresse"); //, routage vers Paris");
+                    // Carte : Si pas de input de recherche vie, il ne se passse rien.
+                    if(listTab === true) {
+                        // List : Permet d'avoir des associations affichées sur la liste
+                        latitude = 48.8566;
+                        longitude = 2.3522;
+                    }
+                    return;
+                }
             }
+
             latitude = $lat;
             longitude = $lng;
                 
             centreloc = {lat: $lat, lng: $lng};
             
-            // Map OSM
-            $w('#html2').postMessage({ 
-                type: 'SEARCH_LOCATION', 
-                data: centreloc,
-                filter: filter
-            });
+            if(oldLat != latitude || oldLong != longitude  || zoom <= 7 || zoom >= 9){
+                console.log("oldLat != latitude || oldLong != longitude. Zoom : "+zoom);
+                oldLat = latitude;
+                oldLong = longitude;
+                // Map OSM
+                $w('#html2').postMessage({ 
+                    type: 'SEARCH_LOCATION', 
+                    data: centreloc,
+                    filter: filter
+                });
+            } else {
+                console.log("oldLat === latitude || oldLong === longitude")
+            }
+            
 
         } else if(comeFrom === "moveend"){
             //console.log("comeFrom : "+comeFrom);
@@ -226,7 +353,7 @@ $w.onReady(function () {
         }
         // Liste 
         //console.log("listAssociationAvecFiltre");
-        listAssociationAvecFiltre(comeFrom);
+        //listAssociationAvecFiltre(comeFrom);
     }
 
     // Recupération des markers sans appelle à la bdd
@@ -237,7 +364,8 @@ $w.onReady(function () {
         // Supprimer tous les éléments
         repeater.data = [];
         let itemsToAdd = [];
-        //console.log("listAssociationAvecFiltre - markers.length : " + markers.length);
+        console.log("listAssociationAvecFiltre - markers.length : " + markers.length);
+        console.log("filter.radius : "+ filter.radius);
         var index = 0;
         var arrayDistinct = [];
         for(let i=0;i<markers.length;i++){
@@ -252,7 +380,7 @@ $w.onReady(function () {
                     
                 }
             } else if (comeFrom === "moveend") {
-                //Si l'association est affichée dans la carte, alors l'afficher dans la liste
+                //Si l'association est affichée sur la carte, alors l'afficher dans la liste
                 if (markers[i].lat < right && left < markers[i].lat &&
                     markers[i].lng < top && bottom < markers[i].lng) {
                     if(!arrayDistinct.includes(markers[i].name)){
@@ -267,7 +395,7 @@ $w.onReady(function () {
             }
         }
 
-        //console.log("filteredFeatures.length : " + filteredFeatures.length);
+        console.log("filteredFeatures.length : " + filteredFeatures.length);
         if (filteredFeatures.length > 0) {
             $w("#textNoAsso").hide();
             
@@ -296,11 +424,14 @@ $w.onReady(function () {
     function spatialFilter(feature) {
         var featureLatitude = feature.lat;
         var featureLongitude = feature.lng;
-        //console.log("spatialFilter - Name : "+feature.title+" - lat long : "+featureLatitude+" / "+featureLongitude+" / "+latitude+ " / "+ longitude);
+        //console.log("spatialFilter - Name : "+feature.name+" - lat long : "+featureLatitude+" / "+featureLongitude+" / "+latitude+ " / "+ longitude);
         const dist = distance(latitude, longitude, featureLatitude, featureLongitude);
+        if(dist < filter.radius){
+            //console.log("spatialFilter - Name : "+feature.name+" - "+feature.address+" /  lat long : "+featureLatitude+" / "+featureLongitude+" / "+latitude+ " / "+ longitude+ " // dist : "+dist);
+        }
         
         //console.log("distance < radius : "+dist +" < "+ filter.radius);
-        return dist < filter.radius;
+        return dist < filter.radius; // 200
     }
 
     // Calculer la distance entre la fonctionnalité et le point de référence
@@ -339,14 +470,17 @@ $w.onReady(function () {
             bottom = receivedMessage.varbottom;
             top = receivedMessage.vartop;
 
-            searchLocation("moveend");
+            listAssociationAvecFiltre("moveend");
 
-        } else if(event.data.type === "loadAllMarkers") {
-            //console.log("event.data.type === loadAllMarkers : "+markers.length);
-            // Recupérer les markers correspondants au filtre
-            //filter = filterValues();
-            //findAllAsso(filter);
+        } else if(event.data.type === "loadMarkers") {
+            //console.log("event.data.type === loadMarkers : "+markers.length);
+            // Recupérer les markers
             $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });
+        
+        } else if(event.data.type === "zoomLevel") {
+            var zoom = 18 - event.data.value;
+            //console.log("event.data.type : zoomLevel, event.data.value : "+event.data.value+ " / zoom : "+zoom);
+            $w("#slider3").value = zoom;
         }
 
     });
