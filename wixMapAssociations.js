@@ -12,7 +12,7 @@ $w.onReady(function () {
 
     // Tabs - Onglets
     // Default behavior
-    $w("#repeter").hide();
+    $w("#repeter").delete();
     $w("#html2").show();
     // List
     $w("#button5").onClick((event) => {

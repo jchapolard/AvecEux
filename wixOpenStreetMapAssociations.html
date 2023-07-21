@@ -217,8 +217,8 @@
         // Créer un tableau vide pour stocker les fonctionnalités filtrées
         var refineFeatures = [];
         // Filtre des points à afficher
-        //console.log("OSM features, longitude, latitude, rayon"+ features+" "+ longitude+" "+ latitude+" "+ filter.radius);
-        refineFeatures = filteredFeatures(features, longitude, latitude, 50);
+        //console.log("OSM searchLocation - features, longitude, latitude, rayon"+ features+" "+ longitude+" "+ latitude+" "+ filter.radius);
+        refineFeatures = filteredFeatures(features, longitude, latitude, filter.radius); //50);
         
         // Calcul du niveau de zoom et du centre de la carte en fonction des points
         // Créer un extent vide
@@ -226,12 +226,12 @@
 
         // Si il n'y a pas de features autour du point demandé, alors afficher la carte plus haute.
         if (refineFeatures.length === 0) {
-            //console.log("OSM refineFeatures - Le tableau est vide.");
+            console.log("OSM searchLocation - Le tableau est vide.");
             //filter.radius = 200;
             refineFeatures = filteredFeatures(features, longitude, latitude, 200);
 
         } else {
-            //console.log("OSM refineFeatures - Le tableau contient : "+refineFeatures.length+" éléments.");
+            console.log("OSM searchLocation - Le tableau contient : "+refineFeatures.length+" éléments.");
         } 
 
         // Parcourir le tableau de features et étendre l'extent avec les coordonnées de chaque feature
@@ -291,6 +291,27 @@
             const zoomLevel = map.getView().getZoom();
             //console.log("Niveau de zoom : ", zoomLevel);
             window.parent.postMessage({type: "zoomLevel", "value": zoomLevel }, "*");
+
+            //récuperer les cooordonnées des coins de la map affichée
+            let extent = map.getView().calculateExtent(map.getSize());
+
+            var box = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
+
+            var left = box[1];
+            var bottom = box[0];
+            var right = box[3];
+            var top = box[2];
+
+            //console.log("OSM --------------- box[0]" + box[0]);
+
+            //renvoyer les données de la carte à la page wix
+            var eventData = {
+                varleft: left,
+                varbottom: bottom,
+                varright: right,
+                vartop: top
+            };
+
             window.parent.postMessage({type: "moveend", "value": eventData }, "*");
         }, 1000); // 2000 millisecondes = 2 secondes
     });
