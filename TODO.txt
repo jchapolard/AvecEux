@@ -67,5 +67,5 @@ Correctif écran Assocations :
 - Gestion du zoom de focalisation lors d'une recherche : exclusion des zooms trop raprochés et gestion des zones vides par un dézoom sur une zone plus large.
 - Suppression des espaces blancs entre la hauteur de la carte et de la liste
 - Si aucun tag catégorie n'est séléectionné, aucun point sur la carte n'est affiché
-- 
+- Refacto et test de passage entre List et map
 - 

@@ -5,7 +5,7 @@ import wixWindow from 'wix-window';
 
 $w.onReady(function () {
     var latitude, longitude, oldLat, oldLong;
-    var userGeolocalisation = false, listTab = false, mapTab = false;
+    var userGeolocalisation = false, listTab = false, mapTab = true;
     var left, right, bottom, top;
     var markers, markersWixItems;
     var filter, centreloc, zoom;
@@ -184,6 +184,7 @@ $w.onReady(function () {
         });
 
         if(listTab == true){
+            console.log("#slider3 - listTab == true");
             searchLocation("button");
             listAssociationAvecFiltre("button");
         }
@@ -243,40 +244,40 @@ $w.onReady(function () {
                 distance = 125;
                 break;
             case 7:
-                distance = 62.5;
+                distance = 80;
                 break;
             case 8:
-                distance = 31.25;
+                distance = 50;
                 break;
             case 9:
-                distance = 15.625;
+                distance = 35;
                 break;
             case 10:
-                distance = 7.813;
+                distance = 30;
                 break;
             case 11:
-                distance = 3.906;
+                distance = 25;
                 break;
             case 12:
-                distance = 1.953;
+                distance = 20;
                 break;
             case 13:
-                distance = 0.977;
+                distance = 15;
                 break;
             case 14:
-                distance = 0.488;
+                distance = 10;
                 break;
             case 15:
-                distance = 0.244;
+                distance = 7;
                 break;
             case 16:
-                distance = 0.122;
+                distance = 5;
                 break;
             case 17:
-                distance = 0.061;
+                distance = 3;
                 break;
             case 18:
-                distance = 0.031;
+                distance = 1;
                 break;
             default:
                 distance = 60; // zoom 7 - Valeur par défaut si le zoom est invalide
@@ -332,11 +333,16 @@ $w.onReady(function () {
                 oldLat = latitude;
                 oldLong = longitude;
                 // Map OSM
-                $w('#html2').postMessage({ 
-                    type: 'SEARCH_LOCATION', 
-                    data: centreloc,
-                    filter: filter
-                });
+                if(mapTab == true){
+                    $w('#html2').postMessage({ 
+                        type: 'SEARCH_LOCATION', 
+                        data: centreloc,
+                        filter: filter
+                    });
+                } else {
+                    //console.log("listAssociationAvecFiltre");
+                    listAssociationAvecFiltre(comeFrom);
+                }
             } else {
                 console.log("oldLat === latitude || oldLong === longitude")
             }
@@ -351,9 +357,6 @@ $w.onReady(function () {
                 top : top
             }
         }
-        // Liste 
-        //console.log("listAssociationAvecFiltre");
-        //listAssociationAvecFiltre(comeFrom);
     }
 
     // Recupération des markers sans appelle à la bdd
@@ -394,6 +397,23 @@ $w.onReady(function () {
                 break;
             }
         }
+
+        // Si aucune association dans le périmétre, augmenter le zoom
+        /*if (filteredFeatures.length == 0) {
+            console.log("Aucune asso dans périmétre. Augmenter Zoom à 12");
+            $w("#slider3").value = 12;
+            filter.radius = convertZoomToKilometers($w("#slider3").value);
+            for(let i=0;i<markers.length;i++){
+                if (spatialFilter(markers[i])) {
+                    if(!arrayDistinct.includes(markers[i].name)){
+                        arrayDistinct.push(markers[i].name);
+                        filteredFeatures.push(markersWixItems[i]);
+                        index++;
+                    }
+                    
+                }
+            }
+        } */
 
         console.log("filteredFeatures.length : " + filteredFeatures.length);
         if (filteredFeatures.length > 0) {
