@@ -68,4 +68,36 @@ Correctif écran Assocations :
 - Suppression des espaces blancs entre la hauteur de la carte et de la liste
 - Si aucun tag catégorie n'est séléectionné, aucun point sur la carte n'est affiché
 - Refacto et test de passage entre List et map
-- 
+
+11/08/2023
+- Missions : affichage des dates formatées
+- Missions : Implémentation du champs "Recherche une mission"
+- Discusion pour la mise en page des cards markers et list.
+
+Associations :
+- Carte : Scroll sur la carte. Ajouter padding
+- Géolocaliser : ne trouve pas autour d'Annecy
+Je suis sur Paris avec carte, puis je me géolocalise et fin je regarde la liste (vide)
+- Dans cards List : Afficher : "Voir site internet"
+- Supprimer le zoom
+- Si je vois 2 markers sur la carte, je dois trouver deux asso dans la liste
+- Le réglage du zoom n'est pas bon : le choisi Bordeaux et je vais sur la list, j'ai trop de choix
+- Quand on arrive toutes les markers sont affiché mais toutes les catégories sont désélectionnées. Je choisis une ville, puis je choisis une catégorie. Ne s'affiche que les associations avec cette catégorie.
+
+Missoins :
+- Imput Recheche : Coraline ne peut pas mettre de texte dedans....
+- Voir les log sous wix pour fuite mémoire ou erreur pile d'exécution
+- Carts : Site internet à ajouter
+- Ajouter la liste déroulante présencielle
+
+18/08/2023
+- Optimisation pour l'affichage des markers en fonction du filtre : 1 appel à la bdd puis tout en liste
+- Ajoute des filtres : presentiel et type
+- CSS sur les listes et les infobulles
+
+TODO :
+- Finir d'ajouter les images des Associations manquantes.
+- Voir pour cadrer correctement les images. Formats, taille
+- Regarder en responsive
+- Connecter avec le travail de Jonathan D. Notament les données save en base pour matcher avec les option définis dans Associations et Missions
+- En attentes des retours de Ophélie et Coraline sur les pages Associations et Missions

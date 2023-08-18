@@ -1,3 +1,4 @@
+// wixAssociations.js
 // Référence API Velo : https://www.wix.com/velo/reference/api-overview/introduction
 
 import wixData from 'wix-data';
@@ -7,42 +8,41 @@ $w.onReady(function () {
     var latitude, longitude, oldLat, oldLong;
     var userGeolocalisation = false, listTab = false, mapTab = true;
     var left, right, bottom, top;
-    var markers, markersWixItems;
-    var filter, centreloc, zoom;
+    let oldLeft, oldRight, oldTop, odlBottom;
+    var markers, markersWixItems, allMarkers, allMarkersWixItems;
+    var filter, centreloc, comeFrom;
+    var searchboolean = false, searchlocationLeft, searchlocationRight, searchlocationTop, searchlocationBottom;
+    const OFFSET_MULTIPLIER = 0.0001; // Facteur de multiplication pour le décalage
 
     // Tabs - Onglets
     // Default behavior
     $w("#repeter").delete();
     $w("#html2").show();
+    // Par default cacher le texte "aucune association"
+    $w("#textNoAsso").hide();
+
     // List
     $w("#button5").onClick((event) => {
+        console.log("Tabulation List");
         listTab = true;
         mapTab = false
         $w("#html2").hide();
-        searchLocation("button");
-        listAssociationAvecFiltre("button");
         $w("#repeter").restore();
-        $w("#repeter").show('fade', { duration: 700 });
+        $w("#repeter").show();
     });
+
     // Map
     $w("#button6").onClick((event) => {
+        console.log("Tabulation Map");
         listTab = false;
         mapTab = true;
         $w("#repeter").delete();
-        $w("#html2").show('fade', { duration: 700 });
+        $w("#html2").show('fade', { duration: 400 });
     });
-    // Filter
-    /*$w("#button7").onClick((event) => {
-        if($w("#box6").isVisible){
-            $w("#box6").hide('fade', { duration: 500 }).then(() => {});
-        } else {
-             $w("#box6").show('fade', { duration: 500 }).then(() => {});
-        }
-    }); */
-    
+        
     // WINDOWS -------------------
     // Appel de la fonction pour récupérer la géolocalisation
-    //getGeolocation();
+    getGeolocation();
     // Fonction pour récupérer la géolocalisation
     function getGeolocation() {
         wixWindow.getCurrentGeolocation()
@@ -51,8 +51,7 @@ $w.onReady(function () {
             latitude = position.coords.latitude;
             longitude = position.coords.longitude;
             //console.log('User Géolocalisation - Latitude:', latitude);
-            //console.log('User Géolocalisation - Longitude:', longitude);
-            searchLocation("button");
+            searchLocation();
         })
         .catch((error) => {
             // Erreur : impossible de récupérer la position géographique
@@ -60,239 +59,174 @@ $w.onReady(function () {
         });
     }
   
-    // FILTRES - MARKERS--------
-    // Par default cacher le texte "aucune association"
-    $w("#textNoAsso").hide();
-    
-    // Récupération des filtres 
+    // Récupération des valeurs du filtre
     function filterValues(){
-        // Récupère les valeurs du filtre
-        var radius = $w("#slider3").value;
-        zoom = radius;
-        //console.log(typeof radius);
-        console.log("zoomSlider : "+radius);
-        radius = convertZoomToKilometers(radius);
-        console.log("convertZoomToKilometers : "+ radius);
-        // Récupérer la valeur unique de la case à cocher sélectionnée
-        //var activityCheckbox = $w('#checkboxGroup1').value.toString();
-        // Récupération des valeurs des Tags Catégories
+        // Tags Catégories
         var activityCheckbox = $w('#selectionTags1').value.toString();
-        //console.log("filterValues - activityCheckbox  "+activityCheckbox);
-        //let valeursActivites = activityCheckbox.split(","); // Convertit la chaîne en tableau
-        let valeursActivites = activityCheckbox.split(",").map(function(item) {
-            return item.trim();
-          });
-        //console.log("1.valeursActivites : "+valeursActivites);
-        //console.log("valeursActivites.length : "+valeursActivites.length);
+        //console.log("1. activityCheckbox.length : "+activityCheckbox +" - length : "+activityCheckbox.length);
+        let valeursActivites = [""];
+
+       if (activityCheckbox.length == 0) {
+            findAllCategories()
+                .then(handleCategories)
+                .catch(error => {
+                    console.error("Erreur lors de la récupération des catégories : ", error);
+                });
+        } else {
+            handleCategories(activityCheckbox.split(",").map(function (item) {
+                return item.trim();
+            }));
+        }
         
+        function handleCategories(selectedCategories) {
+            activityCheckbox = selectedCategories.join(", ");
+            valeursActivites = activityCheckbox.split(",").map(function (item) {
+                return item.trim();
+            });
+        }
+
         filter = {
-            radius: radius,
             categories: valeursActivites,
             numberCategories: valeursActivites.length
         }
         return filter;
     }
-    filter = filterValues();
-    findAllAsso(filter);
-    
-    //Chercher dans la base de données les associations validées et les envoyer à l'html OpenStreetMap - OpenLayers
-    function findAllAsso(filter){
-        var valeurCategorie = "";
-        if(filter.numberCategories === 1){
-            valeurCategorie = filter.categories[0].toString();
-            //console.log("valeurCategorie : "+valeurCategorie);
-        }
-        //console.log("filter.categories.length : "+filter.categories.length);
 
+    function findAllCategories(){
+        return wixData.query("Categorie")
+        .find()
+        .then(results => {
+            return results.items;
+        })
+        .catch(error => {
+            console.error("Erreur lors de la récupération des catégories : ", error);
+            return [];
+        });
+    }
+
+    filter = filterValues();
+    findAllAsso();
+    
+    // Chargement des associations au load de la page
+    function findAllAsso(){
         wixData.query("Locations")
-            .eq("validee", "true")
-            .contains("categorie1", valeurCategorie)
             .ne("lat", 0) // Exclusion des associations sans coodonnées latitude et longitude renseignées en bdd
             .ne("lng", 0)
             .limit(1000) // Spécifiez la limite pour récupérer toutes les lignes
             .find()
             .then((results) => {
                 // Créer un tableau de marqueurs à partir des résultats de la requête
-                markers = results.items.map(item => ({
-                    _id: item._id,
-                    id: item.id,
-                    name: item.title,
-                    address: item.adresseSiege,
-                    lat: item.lat,
-                    lng: item.lng,
-                    categorie: item.categorie1,
-                    description: item.description,
-                    logo: item.logo,
-                    website: item.website
+                allMarkers = results.items.map(item => ({
+                    //_id: item._id,
+                    id: item.id ?? "No id",
+                    name: item.title ?? "No name",
+                    address: item.adresseSiege ?? "No adresse",
+                    lat: item.lat ?? "No latitude",
+                    lng: item.lng ?? "No longitude",
+                    categorie: item.categorie1 ?? "No categorie",
+                    description: item.description ?? "No description",
+                    logo: item.logo ?? "No logo",
+                    website: item.website ?? "No website"
                 }));
-                markersWixItems = results.items; // Tableau des objets résultants
-                //const count = markersWixItems.length; // Nombre d'objets dans le tableau
-                //console.log("Nombre d'objets dans markersWixItems: " + count);
+                
+                const coordinatesMap = new Map(); // Utilisé pour stocker les coordonnées et le nombre de markers
 
-                //console.log("=====> findAllAsso, nombre de markers : "+markers.length);
+                // Mise à jour des données
+                for (let i = 0; i < allMarkers.length; i++) {
+                    results.items[i].website = allMarkers[i].website;
+                    
+                    // Gestion des coordonnées identiques
+                    const latLngKey = `${allMarkers[i].lat},${allMarkers[i].lng}`;
 
-                if(filter.numberCategories > 1){
-                    let markersFilteredCategories = [];
-                    let markersWixFilterdCategories = [];
-                    markersFilteredCategories = findMarkersByCategories(markers, filter, markersWixItems, markersWixFilterdCategories);
-                    markers = markersFilteredCategories;
-                    markersWixItems = markersWixFilterdCategories;
+                    if (!coordinatesMap.has(latLngKey)) {
+                        coordinatesMap.set(latLngKey, 0);
+                    } else {
+                        const count = coordinatesMap.get(latLngKey);
+                        coordinatesMap.set(latLngKey, count + 1);
+
+                        const offset = OFFSET_MULTIPLIER * coordinatesMap.get(latLngKey);
+                        const adjustedLng = allMarkers[i].lng + offset;
+                        allMarkers[i].lng = adjustedLng;
+                        results.items[i].lng = adjustedLng;
+                    }                    
                 }
+                allMarkersWixItems = results.items; // Tableau des objets résultants
+                markersWixItems = allMarkersWixItems;
+                markers = allMarkers;
+
                 // Envoyer les marqueurs à l'élément HTML en utilisant postMessage
-                $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });             
-                //searchLocation("button");                
+                $w('#html2').postMessage({ type: 'ADD_MARKERS', data: allMarkers });             
+                console.log("listMissions");
+                listAssociations();
+                
             })
             .catch((error) => {
                 let errorMsg = error.message;
                 let code = error.code;
                 console.error("findAllAsso Error : "+code +" : "+errorMsg);
+                console.trace(); // Affiche la pile d'appels
             });
     }
     
-    function findMarkersByCategories(markers, filter, markersWixItems, markersWixFilterdCategories) {
+    // Trouver les markers en fonctions des filtres choisies par l'utilisateur
+    function findMarkersByFilters(filter) {
         //console.log("findMarkersByCategories");
+        let markersWixFilterd = [];
         let arrayMarkersCopy = [];
-        for(let i=0;i<markers.length;i++){
-            if (filter.categories.some(category => markers[i].categorie.includes(category))) {
-              arrayMarkersCopy.push(markers[i]);
-              markersWixFilterdCategories.push(markersWixItems[i]);
+        for(let i=0;i<allMarkers.length;i++){
+            if (filter.categories.some(category => allMarkers[i].categorie.includes(category))) {
+
+                arrayMarkersCopy.push(Object.assign({}, allMarkers[i])); // Copie de l'objet marker
+                markersWixFilterd.push(allMarkersWixItems[i]);
             }
         }       
-        //console.log("findMarkersByCategories : " + arrayMarkersCopy.length);
-        return arrayMarkersCopy;
+        console.log("findMarkersByCategories nombre de markers filtré par catégorie : " + arrayMarkersCopy.length);
+        markers = arrayMarkersCopy
+        markersWixItems = markersWixFilterd;
+    
+        if(markers.length === 0){
+            $w("#textNoAsso").show();
+            // Supprimer les markers sur la carte
+            $w('#html2').postMessage({ type: 'DELETE_MARKERS' });
+            deleteList();
+        } else {
+            $w("#textNoAsso").hide();
+            // Envoyer les marqueurs à l'élément HTML en utilisant postMessage
+            $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });
+            listAssociations();
+        }   
     }
-
+    
     //Click bouton Loupe - Recherche ville, centre la carte sur la location cherchée
     $w("#button4").onClick((event) => {
+        console.log("Botton : Recherche");
         userGeolocalisation = false;
-        searchLocation("button");
+        comeFrom = "button";
+        searchLocation();
     })
     // Géolocalisation de l'utiisateur : centre la carte sur la localisation de l'utilisateur
     $w("#button3").onClick((event) => {
+        console.log("Botton : Géolocalisation");
+        filterValues();
         userGeolocalisation = true;
+        comeFrom = "button";
         getGeolocation();
     })
-    // Changement de valeur du slider
-    $w("#slider3").onChange((event) => {
-        let sliderValue = event.target.value;
-        var maxZoom = $w("#slider3").max; // Récupérer la valeur maximale du slider
-        var zoom = maxZoom - sliderValue; // convertKilometersToZoom(sliderValueKilometers, maxValue);
-        //console.log("La valeur du slider a changé : " + zoom);
-        
-        $w('#html2').postMessage({ 
-            type: 'ZOOM_LEVEL', zoom: zoom
-        });
-
-        if(listTab == true){
-            console.log("#slider3 - listTab == true");
-            searchLocation("button");
-            listAssociationAvecFiltre("button");
-        }
-    });
-
+    
     // Tag Catégories
     $w('#selectionTags1').onChange(function (event) {
         // Récupérez la valeur sélectionnée
-        var selectedValue = event.target.value.length;
+        //var selectedValue = event.target.value.length;
         //console.log("$w('#selectionTags1').length : "+selectedValue);
-        if(selectedValue == 0){
-            markers = [];
-            $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });
-        }else{
-            // Recupérer les markers correspondants au filtre
-            filter = filterValues();
-            findAllAsso(filter);
-        }
-        
-          
+        filter = filterValues();
+        findMarkersByFilters(filter);
     });
 
-    // Checkbox Catégories
-    /*$w('#checkboxGroup1').onChange((event) => {
-        //let checkboxValues = event.target.value; // Récupération des valeurs des checkboxes sélectionnées
-        //console.log("checkboxValues : "+checkboxValues);
-        // Recupérer les markers correspondants au filtre
-        filter = filterValues();
-        findAllAsso(filter);        
-     }); */
-
-    // Slider : Convertion d'une la valeur du slider Zoom OpenLayers (0 -> 18) en kilometre 
-    function convertZoomToKilometers (zoom){
-        zoom = 18 - zoom;
-        var distance;
-        
-        switch (zoom) {
-            case 0:
-                distance = 10000;
-                break;
-            case 1:
-                distance = 5000;
-                break;
-            case 2:
-                distance = 2500;
-                break;
-            case 3:
-                distance = 1000;
-                break;
-            case 4:
-                distance = 500;
-                break;
-            case 5:
-                distance = 250;
-                break;
-            case 6:
-                distance = 125;
-                break;
-            case 7:
-                distance = 80;
-                break;
-            case 8:
-                distance = 50;
-                break;
-            case 9:
-                distance = 35;
-                break;
-            case 10:
-                distance = 30;
-                break;
-            case 11:
-                distance = 25;
-                break;
-            case 12:
-                distance = 20;
-                break;
-            case 13:
-                distance = 15;
-                break;
-            case 14:
-                distance = 10;
-                break;
-            case 15:
-                distance = 7;
-                break;
-            case 16:
-                distance = 5;
-                break;
-            case 17:
-                distance = 3;
-                break;
-            case 18:
-                distance = 1;
-                break;
-            default:
-                distance = 60; // zoom 7 - Valeur par défaut si le zoom est invalide
-                break;
-        }
-        return distance;
-    }
-
-    // Centrer la carte en fonction de la recherche géographique
-    function searchLocation(comeFrom){
+    //recentrer la carte en fonction de la recherche
+    function searchLocation(){
         
         let $lat;
         let $lng;
-        // Récupèration des valeurs du filtre
-        filter = filterValues();
         
         // Adresse recherchée
         if(comeFrom === "button"){
@@ -306,17 +240,16 @@ $w.onReady(function () {
                 $lng = longitude;
             } else {
                 let $adressSearch = $w('#inputLocation');
-                //let address = addressSearch.value;
                 try {
                     $lat = $adressSearch.value.location.latitude;
                     $lng = $adressSearch.value.location.longitude;
                 } catch (error) {
                     // L'adresse n'est pas valide, par default : Paris
-                    console.log("Impossible de géolocaliser l'adresse"); //, routage vers Paris");
+                    console.log("Impossible de géolocaliser l'adresse");
                     // Carte : Si pas de input de recherche vie, il ne se passse rien.
                     if(listTab === true) {
                         // List : Permet d'avoir des associations affichées sur la liste
-                        latitude = 48.8566;
+                        latitude = 48.8566; // routage vers Paris
                         longitude = 2.3522;
                     }
                     return;
@@ -325,31 +258,30 @@ $w.onReady(function () {
 
             latitude = $lat;
             longitude = $lng;
-                
+            
             centreloc = {lat: $lat, lng: $lng};
             
-            if(oldLat != latitude || oldLong != longitude  || zoom <= 7 || zoom >= 9){
-                console.log("oldLat != latitude || oldLong != longitude. Zoom : "+zoom);
+            // Le mouvement de la carte n'est effectué que si l'utilisateur déplace la carte avec la sourie.
+            if(oldLat != latitude && oldLong != longitude
+                || searchlocationLeft != left){
+                    
+                searchboolean = true;
                 oldLat = latitude;
                 oldLong = longitude;
-                // Map OSM
-                if(mapTab == true){
-                    $w('#html2').postMessage({ 
-                        type: 'SEARCH_LOCATION', 
-                        data: centreloc,
-                        filter: filter
-                    });
-                } else {
-                    //console.log("listAssociationAvecFiltre");
-                    listAssociationAvecFiltre(comeFrom);
+                
+                $w('#html2').postMessage({ 
+                    type: 'SEARCH_LOCATION', 
+                    data: centreloc,
+                    filter: filter
+                });
+                if(listTab === true){
+                    listAssociations();
                 }
             } else {
                 console.log("oldLat === latitude || oldLong === longitude")
             }
             
-
         } else if(comeFrom === "moveend"){
-            //console.log("comeFrom : "+comeFrom);
             centreloc = {
                 left : left,
                 bottom : bottom,
@@ -359,18 +291,25 @@ $w.onReady(function () {
         }
     }
 
-    // Recupération des markers sans appelle à la bdd
-    function listAssociationAvecFiltre(comeFrom) {
-        //AFFICHER LES ASSO SOUS FORME DE LISTE
+    // Suppression des associations de la liste
+    function deleteList(){
+        let repeater = $w('#repeter');
+        var filteredFeatures = [];
+        repeater.data = filteredFeatures;
+    }
+
+    // Affichage des associations sur l'onglet Liste
+    function listAssociations() {
+
         let repeater = $w('#repeter');
         var filteredFeatures = [];
         // Supprimer tous les éléments
         repeater.data = [];
         let itemsToAdd = [];
-        console.log("listAssociationAvecFiltre - markers.length : " + markers.length);
-        console.log("filter.radius : "+ filter.radius);
+        //console.log("listAssociations - Nombre d'associations TOTAL : " + markers.length);
         var index = 0;
         var arrayDistinct = [];
+        //console.log("listAssociations - "+comeFrom);
         for(let i=0;i<markers.length;i++){
             if (comeFrom === "button") {
                 // Filtre distance
@@ -384,8 +323,8 @@ $w.onReady(function () {
                 }
             } else if (comeFrom === "moveend") {
                 //Si l'association est affichée sur la carte, alors l'afficher dans la liste
-                if (markers[i].lat < right && left < markers[i].lat &&
-                    markers[i].lng < top && bottom < markers[i].lng) {
+                if (markers[i].lat < right && markers[i].lat > left &&
+                    markers[i].lng < top && markers[i].lng > bottom) {
                     if(!arrayDistinct.includes(markers[i].name)){
                         arrayDistinct.push(markers[i].name);
                         filteredFeatures.push(markersWixItems[i]);
@@ -398,24 +337,7 @@ $w.onReady(function () {
             }
         }
 
-        // Si aucune association dans le périmétre, augmenter le zoom
-        /*if (filteredFeatures.length == 0) {
-            console.log("Aucune asso dans périmétre. Augmenter Zoom à 12");
-            $w("#slider3").value = 12;
-            filter.radius = convertZoomToKilometers($w("#slider3").value);
-            for(let i=0;i<markers.length;i++){
-                if (spatialFilter(markers[i])) {
-                    if(!arrayDistinct.includes(markers[i].name)){
-                        arrayDistinct.push(markers[i].name);
-                        filteredFeatures.push(markersWixItems[i]);
-                        index++;
-                    }
-                    
-                }
-            }
-        } */
-
-        console.log("filteredFeatures.length : " + filteredFeatures.length);
+        console.log("listAssociations - Nombre d'associations affichées dans la liste : " + filteredFeatures.length);
         if (filteredFeatures.length > 0) {
             $w("#textNoAsso").hide();
             
@@ -425,13 +347,39 @@ $w.onReady(function () {
             //console.log("itemsToAdd.length : " + itemsToAdd.length);
             //console.log("itemsToAdd[0]; : "+JSON.stringify(itemsToAdd[0]));
             //console.log("itemsToAdd[0].title : "+ JSON.stringify(itemsToAdd[0].title));
-            
+            const MAX_DESCRIPTION_LENGTH = 80; // Limite de caractères pour la description
+            const MAX_CATEGORY_LENGTH = 30;
+
             $w("#repeter").data = itemsToAdd;
             $w("#repeter").forEachItem(($item, itemData, index) => {
                 $item("#repeterName").text = itemData.title;
-                $item("#repeterCategorie").text = itemData.categorie1;
-                $item("#repeterDescription").text = itemData.description;
-                $item("#repeterSite").text = itemData.website;
+                
+                // Gestion taille catégorie
+                //$item("#repeterCategorie").text = itemData.categorie1;
+                const category = itemData.categorie1;
+                const truncatedCategory = category.length > MAX_CATEGORY_LENGTH ?
+                                        category.substring(0, MAX_CATEGORY_LENGTH) + "..." :
+                                        category;
+                $item("#repeterCategorie").text = truncatedCategory;
+                
+                // Gestion de la taille du texte de la description
+                const $descriptionClickable = $item("#repeterDescription");
+                const fullDescription = itemData.description;
+                var booleanFullDescription = true;
+                $descriptionClickable.text = fullDescription.substring(0, MAX_DESCRIPTION_LENGTH) + "...";
+                $descriptionClickable.onClick(() => {
+                    if(booleanFullDescription){
+                        $descriptionClickable.text = fullDescription; // Afficher le texte complet
+                        booleanFullDescription = false;
+                    } else {
+                        $descriptionClickable.text = fullDescription.substring(0, MAX_DESCRIPTION_LENGTH) + "...";
+                        booleanFullDescription = true;
+                    }
+                });
+                
+                // Créez un lien HTML pour le site internet
+                const siteLink = `<a href="${itemData.website}" target="_blank" style="font-size: 14px; font-family: 'Avenir Light', sans-serif; font-weight: normal; font-style: italic; color: #E41C64;">Voir site internet</a>`;
+                $item("#repeterSite").html = siteLink;
                 $item("#repeterLogo").src = itemData.logo;
             });
         } else {
@@ -446,12 +394,10 @@ $w.onReady(function () {
         var featureLongitude = feature.lng;
         //console.log("spatialFilter - Name : "+feature.name+" - lat long : "+featureLatitude+" / "+featureLongitude+" / "+latitude+ " / "+ longitude);
         const dist = distance(latitude, longitude, featureLatitude, featureLongitude);
-        if(dist < filter.radius){
-            //console.log("spatialFilter - Name : "+feature.name+" - "+feature.address+" /  lat long : "+featureLatitude+" / "+featureLongitude+" / "+latitude+ " / "+ longitude+ " // dist : "+dist);
-        }
         
         //console.log("distance < radius : "+dist +" < "+ filter.radius);
-        return dist < filter.radius; // 200
+        return dist < 30;
+        
     }
 
     // Calculer la distance entre la fonctionnalité et le point de référence
@@ -475,33 +421,49 @@ $w.onReady(function () {
             dist = dist * 60 * 1.1515;
             dist = dist * 1.609344;
             
-            return dist;
+            return Math.round(dist);
         }
     }
-
 
     $w("#html2").onMessage( (event) => {
         if (event.data.type === "moveend") {
             //console.log("event.data.type === moveend");
-            
+            comeFrom = "moveend";
             let receivedMessage = event.data.value;
             left = receivedMessage.varleft;
             right = receivedMessage.varright;
             bottom = receivedMessage.varbottom;
             top = receivedMessage.vartop;
 
-            listAssociationAvecFiltre("moveend");
+            // Màj de la Liste : Evite un déclenchement trop fréquent et réduit les appels inutiles de la fonction
+            if(oldLeft != left && oldRight != right && oldTop != top && odlBottom != bottom){
+                //console.log("Màj de la Liste : oldLeft != left "+oldLeft+" "+ left+" / oldRight != right "+oldRight+" "+right+" / oldTop != top "+oldTop+" "+top+" / odlBottom != bottom "+odlBottom+" "+bottom);
+
+                oldLeft = left;
+                oldRight = right;
+                oldTop = top;
+                odlBottom = bottom;
+
+                // Permet d'enregistrer la recherche d'une adresse, modifier la carte, puis rechercher à nouveau cette adresse
+                if(searchboolean){
+                    searchlocationLeft = left;
+                    searchlocationRight = right;
+                    searchlocationTop = top;
+                    searchlocationBottom = bottom;
+                    searchboolean = false;
+
+                }
+                // Mise à jour de la liste en fonction de la carte
+                listAssociations();
+            }
+            
 
         } else if(event.data.type === "loadMarkers") {
             //console.log("event.data.type === loadMarkers : "+markers.length);
             // Recupérer les markers
-            $w('#html2').postMessage({ type: 'ADD_MARKERS', data: markers });
-        
-        } else if(event.data.type === "zoomLevel") {
-            var zoom = 18 - event.data.value;
-            //console.log("event.data.type : zoomLevel, event.data.value : "+event.data.value+ " / zoom : "+zoom);
-            $w("#slider3").value = zoom;
-        }
+            $w('#html2').postMessage({ type: 'ADD_MARKERS', data: allMarkers });
+        } 
 
     });
+    
 });

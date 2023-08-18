@@ -37,6 +37,14 @@
             color: lightgray;
             font-size: 20px;
         }
+#websiteLink {
+            text-decoration: none;
+            font-size: 14px; 
+            font-family: 'Avenir Light', sans-serif; 
+            font-weight: normal; 
+            font-style: italic;
+            color: #E41C64;
+        }
     </style>
 </head>
 <body>
@@ -59,13 +67,18 @@
 
     var features = [];
     var markersData;
+    var eventData;
     // ------------- Ajouter à la carte les élements de la base de données des associations --------------
     
     window.onmessage = (event) => {
         if (event.data.type == 'ADD_MARKERS') {
-            //console.log("OSM ADD_MARKERS");
-            markersData = event.data.data;
-            addMarkers(markersData);
+                markersData = event.data.data;
+                //console.log("OSM ADD_MARKERS : "+markersData);
+            if(!markersData || markersData.length === 0){
+                window.parent.postMessage({type: "loadMarkers", "value": eventData }, "*");
+            } else {
+                addMarkers(markersData);
+            }
         }
 
         if (event.data.type == 'SEARCH_LOCATION') {
@@ -73,13 +86,13 @@
             searchLocation(event.data.data, event.data.filter);
         }
 
-        if(event.data.type == 'ZOOM_LEVEL') {
-            sliderZoomLevel(event.data.zoom);
+        if (event.data.type == 'DELETE_MARKERS') {
+            deleteMarkers();
         }
     }
+
     if (features.length === 0) {
         //console.log("OSM features.length === 0  --> loadMarkers");
-        var eventData;
         window.parent.postMessage({type: "loadMarkers", "value": eventData }, "*");
     } 
 
@@ -124,14 +137,14 @@
             popupContent += '<h3>' + feature.get('name') + '</h3>';
             popupContent += '<p><strong>' + feature.get('categorie') + '</strong><br>';
             popupContent += feature.get('description') + '</p>';
-            popupContent += '<a href="' + feature.get('site') + '">Site internet</a>';
+            popupContent += '<a href="' + feature.get('site') + '" target="_blank" id="websiteLink">Site internet</a>';
 
             // Obtenir les coordonnées de la fonctionnalité
             //var coordinate = feature.getGeometry().getCoordinates(); // A la base du marker
             const coordinate = evt.coordinate; // Sur le marker (la où clique la sourie)
             overlay.setPosition(coordinate);
             
-            // https://openlayers.org/en/latest/examples/overlay.html
+            // Source : https://openlayers.org/en/latest/examples/overlay.html
             let popover = bootstrap.Popover.getInstance(element);
             if (popover) {
                 popover.dispose();
@@ -155,17 +168,22 @@
         }
     });
     
-
-    //Ajouter les markers issus de la BDD
-    function addMarkers(markers) {
-        //console.log("OSM addMarkers(markers) : "+markers.length);
-
+    // Delete markers
+    function deleteMarkers(){
         // Suppression des couches Points de la carte
         map.getLayers().forEach(function(layer, index) {
             if (index > 0){ // Element 0 is the map
             map.removeLayer(layer);
             }
         });
+    }
+
+    //Ajouter les markers issus de la BDD
+    function addMarkers(markers) {
+        //console.log("OSM addMarkers(markers) : "+markers.length);
+
+        // Suppression des couches Points de la carte
+        deleteMarkers()
         
         //personnaliser le marker avec une image
         var stylePosition = new ol.style.Style({
@@ -182,14 +200,14 @@
         
         //Ajout markers de la BDD
         markers.forEach(marker => {
-            //console.log("OSM marker name : "+ marker.name);
+            
             var feature = new ol.Feature({
                 geometry: new ol.geom.Point(ol.proj.fromLonLat([marker.lng, marker.lat])),
                 longitude: marker.lng,
                 latitude: marker.lat,
                 name: marker.name,
                 description: marker.description,
-                site: marker.site,
+                site: marker.website,
                 logo: marker.logo,
                 categorie: marker.categorie
             });
@@ -218,21 +236,17 @@
         var refineFeatures = [];
         // Filtre des points à afficher
         //console.log("OSM searchLocation - features, longitude, latitude, rayon"+ features+" "+ longitude+" "+ latitude+" "+ filter.radius);
-        refineFeatures = filteredFeatures(features, longitude, latitude, filter.radius); //50);
+        refineFeatures = filteredFeatures(features, longitude, latitude, 50); //filter.radius);
+        
+        // Si il n'y a pas de features autour du point demandé, alors afficher la carte plus haute.
+        if (refineFeatures.length === 0) {
+            //console.log("OSM searchLocation - Le tableau est vide.");
+            refineFeatures = filteredFeatures(features, longitude, latitude, 200);
+        } 
         
         // Calcul du niveau de zoom et du centre de la carte en fonction des points
         // Créer un extent vide
         var extent = ol.extent.createEmpty();
-
-        // Si il n'y a pas de features autour du point demandé, alors afficher la carte plus haute.
-        if (refineFeatures.length === 0) {
-            console.log("OSM searchLocation - Le tableau est vide.");
-            //filter.radius = 200;
-            refineFeatures = filteredFeatures(features, longitude, latitude, 200);
-
-        } else {
-            console.log("OSM searchLocation - Le tableau contient : "+refineFeatures.length+" éléments.");
-        } 
 
         // Parcourir le tableau de features et étendre l'extent avec les coordonnées de chaque feature
         refineFeatures.forEach(function(feature) {
@@ -286,7 +300,7 @@
     // Événement qui se déclenche lorsque la carte est stabilisée
     map.on('moveend', function () {
         // Attendre 2 secondes avant d'exécuter le code suivant
-        setTimeout(function () {
+        //setTimeout(function () {
             // Récupérer le bon niveau de zoom
             const zoomLevel = map.getView().getZoom();
             //console.log("Niveau de zoom : ", zoomLevel);
@@ -313,18 +327,18 @@
             };
 
             window.parent.postMessage({type: "moveend", "value": eventData }, "*");
-        }, 1000); // 2000 millisecondes = 2 secondes
+        //}, 1000); // 2000 millisecondes = 2 secondes
     });
 
 
     // Gestion du niveau de zoom en fonction du Slider
-    function sliderZoomLevel(zoom) {
+    /*function sliderZoomLevel(zoom) {
 
         // définir la vue actuelle de la carte
         var view = map.getView();
         var zoomLevel = parseInt(zoom);
         view.setZoom(zoomLevel);
-    }
+    }*/
     
     // ------------- UPDATE LISTE EN FONCTION D'UN CHANGEMENT SUR LA CARTE' --------------
    /*
@@ -387,7 +401,7 @@
             var featureLongitude = feature.get('longitude');
             const dist = distance(latitude, longitude, featureLatitude, featureLongitude);
            //console.log("OSM spatialFilter(feature) : "+latitude+" /"+ longitude+" /"+ featureLatitude+" /"+ featureLongitude);
-            //console.log("OSM distance < radius : "+dist +" < "+ filter.radius);*
+            //console.log("OSM distance < radius : "+dist +" < "+ filter.radius);
             return dist < radius;
         }
 
