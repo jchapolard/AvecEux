@@ -24,20 +24,6 @@
             width: 80%
         }
 
-        @keyframes fadeInAnimation {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.overlay {
-  opacity: 0;
-  animation: fadeInAnimation 0.3s ease forwards;
-}
-
         /* Bouton de fermeture de la popup */
         .ol-popup-closer {
             text-decoration: none;
@@ -50,6 +36,14 @@
             content: "✖";
             color: lightgray;
             font-size: 20px;
+        }
+        #websiteLink {
+            text-decoration: none;
+            font-size: 14px; 
+            font-family: 'Avenir Light', sans-serif; 
+            font-weight: normal; 
+            font-style: italic;
+            color: #E41C64;
         }
     </style>
 </head>
@@ -73,24 +67,33 @@
 
     var features = [];
     var markersData;
+    var eventData;
     // ------------- Ajouter à la carte les élements de la base de données des associations --------------
     
     window.onmessage = (event) => {
         if (event.data.type == 'ADD_MARKERS') {
-            //console.log("OSM ADD_MARKERS");
             markersData = event.data.data;
-            addMarkers(markersData);
+            //console.log("OSM ADD_MARKERS : "+markersData);
+            if(!markersData || markersData.length === 0){
+                window.parent.postMessage({type: "loadMarkers", "value": eventData }, "*");
+            } else {
+                addMarkers(markersData);
+            } 
         }
 
         if (event.data.type == 'SEARCH_LOCATION') {
             //console.log("OSM SEARCH_LOCATION");
             searchLocation(event.data.data, event.data.filter);
         }
+
+        if (event.data.type == 'DELETE_MARKERS') {
+            deleteMarkers();
+        }
     }
+
     if (features.length === 0) {
-        //console.log("OSM features.length === 0  --> loadAllMarkers");
-        var eventData;
-        window.parent.postMessage({type: "loadAllMarkers", "value": eventData }, "*");
+        //console.log("OSM features.length === 0  --> loadMarkers");
+        window.parent.postMessage({type: "loadMarkers", "value": eventData }, "*");
     } 
 
     // ------------- POP UP --------------
@@ -105,17 +108,21 @@
         target: 'map', // dans quel composant html placé la map
         layers: [
             new ol.layer.Tile({
-                preload: 4,
+                preload: 6,
                 source: new ol.source.OSM()
             })
         ],
         view: new ol.View({
-            center: ol.proj.fromLonLat([2.3522, 48.8566]), // Paris
-            zoom: 7, // Zoom inital de la map
+            center: ol.proj.fromLonLat([2.5046503, 46.7227062]), // Milieu de la France
+            zoom: 6, // Zoom inital de la map
             projection : 'EPSG:3857' // Projection Web Mercator de la carte utilisée pour les cartes en ligne et les applications de cartographie Web
         }),
         overlays: [overlay], //pour les pop up
     });
+
+    var currentZoom = map.getView().getZoom();
+    //console.log("currentZoom-- : "+currentZoom);
+    window.parent.postMessage({type: "zoomLevel", "value": currentZoom }, "*");
 
     // display popup on click
     const element = overlay.getElement();
@@ -128,16 +135,18 @@
             var popupContent = '<a href="#" id="popup-closer" class="ol-popup-closer"></a>';
             //popupContent += '<img src="' + feature.get('logo') + '" alt="' + feature.get('name') + '">';
             popupContent += '<h3>' + feature.get('titreMission') + '</h3>';
-            popupContent += '<p><strong>' + feature.get('type') + " - " + feature.get('categorie') + '</strong></p>';
-            popupContent += '<p>' + feature.get('description') + '</p>';
-			
-            //content.innerHTML = popupContent;
+            popupContent += '<p>' + feature.get('type') + " - " + feature.get('categorie') + '<br>';
+            popupContent += '<strong>' + feature.get('nameAssociation') + '</strong><br>';
+            popupContent += "Du " + feature.get('dateDebut') + " au " + feature.get('dateFin') + '<br>';
+            popupContent += feature.get('description') + '</p>';
+			popupContent += '<a href="' + feature.get('site') + '" target="_blank" id="websiteLink">Site internet</a>';
+            
             // Obtenir les coordonnées de la fonctionnalité
-            var coordinate = feature.getGeometry().getCoordinates();
-            //const coordinate = evt.coordinate;
+            //var coordinate = feature.getGeometry().getCoordinates(); // A la base du marker
+            const coordinate = evt.coordinate; // Sur le marker (la où clique la sourie)
             overlay.setPosition(coordinate);
             
-            // https://openlayers.org/en/latest/examples/overlay.html
+            // Source : https://openlayers.org/en/latest/examples/overlay.html
             let popover = bootstrap.Popover.getInstance(element);
             if (popover) {
                 popover.dispose();
@@ -161,17 +170,22 @@
         }
     });
     
-
-    //Ajouter les markers issus de la BDD
-    function addMarkers(markers) {
-        console.log("OSM addMarkers(markers) : "+markers.length);
-
+    // Delete markers
+    function deleteMarkers(){
         // Suppression des couches Points de la carte
         map.getLayers().forEach(function(layer, index) {
-            if (index >= 1){ // Element 0 is the map
+            if (index > 0){ // Element 0 is the map
             map.removeLayer(layer);
             }
         });
+    }
+
+    //Ajouter les markers issus de la BDD
+    function addMarkers(markers) {
+        //console.log("OSM addMarkers(markers) : "+markers.length);
+
+        // Suppression des couches Points de la carte
+        deleteMarkers()
         
         //personnaliser le marker avec une image
         var stylePosition = new ol.style.Style({
@@ -188,7 +202,7 @@
         
         //Ajout markers de la BDD
         markers.forEach(marker => {
-            //console.log("OSM marker name : "+ marker.name);
+            
             var feature = new ol.Feature({
                 geometry: new ol.geom.Point(ol.proj.fromLonLat([marker.lng, marker.lat])),
                 longitude: marker.lng,
@@ -201,7 +215,9 @@
                 description: marker.description,
                 frequence: marker.frequence,
                 presentiel: marker.presentiel,
-                
+                dateDebut : marker.dateDebut,
+                dateFin : marker.dateFin,
+                site: marker.website               
             });
             feature.setStyle(stylePosition);
             source.addFeature(feature);
@@ -227,20 +243,20 @@
         // Créer un tableau vide pour stocker les fonctionnalités filtrées
         var refineFeatures = [];
         // Filtre des points à afficher
-        //console.log("OSM features, longitude, latitude, rayon"+ features+" "+ longitude+" "+ latitude+" "+ filter.radius);
-        refineFeatures = filteredFeatures(features, longitude, latitude, filter);
-        
+        //console.log("OSM searchLocation - features, longitude, latitude, rayon"+ features+" "+ longitude+" "+ latitude+" "+ filter.radius);
+        refineFeatures = filteredFeatures(features, longitude, latitude, 50); //filter.radius);
+
+        // Si il n'y a pas de features autour du point demandé, alors afficher la carte plus haute.
+        if (refineFeatures.length === 0) {
+            //console.log("OSM searchLocation - Le tableau est vide.");
+            refineFeatures = filteredFeatures(features, longitude, latitude, 200);
+        } 
+
         // Calcul du niveau de zoom et du centre de la carte en fonction des points
         // Créer un extent vide
         var extent = ol.extent.createEmpty();
 
         // Parcourir le tableau de features et étendre l'extent avec les coordonnées de chaque feature
-        /*if (refineFeatures.length === 0) {
-            console.log("OSM refineFeatures - Le tableau est vide.");
-        } else {
-            console.log("OSM refineFeatures - Le tableau contient : "+refineFeatures.length+" éléments.");
-        } */
-
         refineFeatures.forEach(function(feature) {
             ol.extent.extend(extent, feature.getGeometry().getExtent());
         });
@@ -279,68 +295,49 @@
                 size: map.getSize(),
                 center: center,
                 padding: padding,
-                maxZoom: 18,
+                // -> Zoom : 0 le plus loin et 18 le plus pres
+                maxZoom: 10, // Réolution le plus pres du sol
+                //minResolution: 4, // 15 Résolution minimale le plus loin du sol
                 constrainResolution: true, // une valeur booléenne qui indique si la résolution doit être maintenue lors du zoom.
                 duration: duration
             }); 
         }
     }
 
-
-    // ------------- UPDATE LISTE EN FONCTION D'UN CHANGEMENT SUR LA CARTE' --------------
-   
-    // Utiliser une fonction debounce pour limiter la fréquence d'appel à handleMoveEnd
-    var debounceMoveEnd = debounce(handleMoveEnd, 2000); // Limite à un appel par 2 seconde
-
-    // Fonction de rappel de l'événement 'moveend'
-    function handleMoveEnd() {
-        var center = map.getView().getCenter();
-        //var longitude = center[0];
-        //var latitude = center[1];
-        //console.log('center Longitude :', longitude, ' / center Latitude :', latitude);
-    }
-
-    // Fonction debounce pour ajouter un délai avant d'appeler la fonction de rappel
-    function debounce(func, wait) {
-        var timeout;
-        return function() {
-        var context = this, args = arguments;
-        clearTimeout(timeout);
-        timeout = setTimeout(function() {
-            func.apply(context, args);
-        }, wait);
-        };
-    }
-
-    // La fonction 'moveend' écoute les changements de la carte 
+    // Événement qui se déclenche lorsque la carte est stabilisée
     map.on('moveend', function () {
-        debounceMoveEnd();
-        //console.log("OSM moveend : Changement carte");
+        // Attendre 2 secondes avant d'exécuter le code suivant
+        //setTimeout(function () {
+            // Récupérer le bon niveau de zoom
+            const zoomLevel = map.getView().getZoom();
+            //console.log("Niveau de zoom : ", zoomLevel);
+            window.parent.postMessage({type: "zoomLevel", "value": zoomLevel }, "*");
 
-        //récuperer les cooordonnées des coins de la map affichée
-        let extent = map.getView().calculateExtent(map.getSize());
+            //récuperer les cooordonnées des coins de la map affichée
+            let extent = map.getView().calculateExtent(map.getSize());
 
-        var box = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
+            var box = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
 
-        var left = box[1];
-        var bottom = box[0];
-        var right = box[3];
-        var top = box[2];
+            var left = box[1];
+            var bottom = box[0];
+            var right = box[3];
+            var top = box[2];
 
-        //console.log("OSM --------------- box[0]" + box[0]);
+            //console.log("OSM --------------- box[0]" + box[0]);
 
-        //renvoyer les données de la carte à la page wix
-        var eventData = {
-            varleft: left,
-            varbottom: bottom,
-            varright: right,
-            vartop: top
-        };
-        window.parent.postMessage({type: "moveend", "value": eventData }, "*");
+            //renvoyer les données de la carte à la page wix
+            var eventData = {
+                varleft: left,
+                varbottom: bottom,
+                varright: right,
+                vartop: top
+            };
+
+            window.parent.postMessage({type: "moveend", "value": eventData }, "*");
+        //}, 1000); // 2000 millisecondes = 2 secondes
     });
 
-
-    function filteredFeatures(features, longitude, latitude, filter){
+    function filteredFeatures(features, longitude, latitude, radius){
 
         // Filtrer les fonctionnalités qui se trouvent à moins de x mètres du point de référence
         function spatialFilter(feature) {
@@ -349,7 +346,7 @@
             const dist = distance(latitude, longitude, featureLatitude, featureLongitude);
            //console.log("OSM spatialFilter(feature) : "+latitude+" /"+ longitude+" /"+ featureLatitude+" /"+ featureLongitude);
             //console.log("OSM distance < radius : "+dist +" < "+ filter.radius);
-            return dist < filter.radius;
+            return dist < radius;
         }
 
         // Calculer la distance entre la fonctionnalité et le point de référence
